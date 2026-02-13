@@ -12,7 +12,7 @@ const MapView = () => {
       center={defaultPosition} 
       zoom={15} 
       style={{ height: '100%', width: '100%', background: '#050505' }}
-      zoomControl={false}
+      zoomControl={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

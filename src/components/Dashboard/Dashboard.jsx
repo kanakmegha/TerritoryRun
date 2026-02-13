@@ -4,24 +4,12 @@ import { Trophy, Map, Activity, AlertTriangle } from 'lucide-react';
 import { latLngToCell, cellToLatLng, cellToBoundary } from 'h3-js';
 
 const Dashboard = () => {
-  const { user, claimedCells, claimCell, alerts, addAlert } = useGameStore();
+  const { user, claimedCells, claimCell, alerts, addAlert, logout, isRunning, startRun, finishRun, currentPath, simulateAttack } = useGameStore();
 
-  const simulateRival = () => {
-    // Simulate losing a territory
-    const claimedKeys = Object.keys(claimedCells);
-    if (claimedKeys.length > 0) {
-       const randomKey = claimedKeys[Math.floor(Math.random() * claimedKeys.length)];
-       // Check if cellToBoundary works
-       try {
-           // We are just simulating an alert for now as we don't have a backend to actually change ownership
-           addAlert(`Territory at ${randomKey.substring(0, 8)}... under attack!`);
-       } catch (e) {
-           console.error(e);
-       }
-    } else {
-        addAlert("No territories to attack yet!");
-    }
-  };
+  if (!user) {
+      // Fallback if user is missing but token exists (rare race condition)
+      return null; 
+  }
 
   return (
     <div className="dashboard-container">
@@ -29,7 +17,10 @@ const Dashboard = () => {
         <h1 className="cyber-glitch" data-text="TERRITORY RUN">TERRITORY RUN</h1>
         <div className="user-profile">
             <div className="avatar" style={{ background: user.color }}></div>
-            <span>{user.name}</span>
+            <div className="user-info">
+                <span>{user.name || user.username}</span>
+                <button className="logout-btn" onClick={logout}>LOGOUT</button>
+            </div>
         </div>
       </header>
 
@@ -61,7 +52,19 @@ const Dashboard = () => {
                 </li>
             ))}
         </ul>
-        <button className="sim-btn" onClick={simulateRival}>SIMULATE ATTACK</button>
+
+        {/* Run Controls */}
+        <div className="run-controls">
+            {!isRunning ? (
+                <button className="run-btn start" onClick={startRun}>START RUN</button>
+            ) : (
+                <button className="run-btn finish" onClick={finishRun}>
+                    FINISH RUN <span className="blink">●</span>
+                </button>
+            )}
+        </div>
+        
+        <button className="sim-btn" onClick={simulateAttack}>SIMULATE RIVAL ATTACK</button>
       </div>
 
       {/* Aesthetic decorative elements */}
@@ -105,6 +108,30 @@ const Dashboard = () => {
             height: 32px;
             border-radius: 50%;
             box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .user-info {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .user-info span {
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: none;
+            color: var(--neon-pink);
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 0;
+            text-decoration: underline;
+        }
+        .logout-btn:hover {
+            color: white;
         }
 
         .stats-grid {
@@ -154,17 +181,59 @@ const Dashboard = () => {
             font-size: 0.7rem;
         }
 
+
         .sim-btn {
-            margin-top: 10px;
+            margin-top: 20px;
             width: 100%;
-            background: rgba(255, 0, 255, 0.2);
+            background: rgba(255, 0, 255, 0.1);
             border: 1px solid var(--neon-pink);
             color: var(--neon-pink);
-            padding: 5px;
+            padding: 8px;
             cursor: pointer;
             font-family: inherit;
             font-size: 0.7rem;
             border-radius: 4px;
+        }
+        
+        .run-controls {
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .run-btn {
+            width: 100%;
+            padding: 12px;
+            font-family: inherit;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            border: none;
+            clip-path: polygon(10% 0, 100% 0, 100% 90%, 90% 100%, 0 100%, 0 10%);
+            transition: all 0.2s;
+        }
+
+        .run-btn.start {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+        
+        .run-btn.finish {
+            background: var(--neon-pink);
+            color: white;
+            box-shadow: 0 0 15px var(--neon-pink);
+        }
+
+        .run-btn:active {
+            transform: scale(0.98);
+        }
+
+        .blink {
+            animation: blinker 1s linear infinite;
+        }
+
+        @keyframes blinker {
+            50% { opacity: 0; }
         }
         .sim-btn:hover {
             background: rgba(255, 0, 255, 0.4);
