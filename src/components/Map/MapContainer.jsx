@@ -2,6 +2,9 @@ import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import PlayerMarker from './PlayerMarker';
 import HexGrid from './HexGrid';
+import InvasionSimulator from './InvasionSimulator';
+import ReclaimHandler from './ReclaimHandler';
+import BreadcrumbTrail from './BreadcrumbTrail';
 
 const MapView = () => {
   // Default position: San Francisco (placeholder)
@@ -28,6 +31,9 @@ const MapView = () => {
       
       <PlayerMarker />
       <HexGrid />
+      <BreadcrumbTrail />
+      <InvasionSimulator />
+      <ReclaimHandler />
     </MapContainer>
   );
 };

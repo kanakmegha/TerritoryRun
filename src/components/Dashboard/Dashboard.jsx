@@ -2,9 +2,22 @@ import { useGameStore } from '../../hooks/useGameStore';
 import StatsCard from './StatsCard';
 import { Trophy, Map, Activity, AlertTriangle } from 'lucide-react';
 import { latLngToCell, cellToLatLng, cellToBoundary } from 'h3-js';
+import { useMap } from 'react-leaflet';
 
 const Dashboard = () => {
-  const { user, claimedCells, claimCell, alerts, addAlert, logout, isRunning, startRun, finishRun, currentPath, simulateAttack } = useGameStore();
+  const { 
+    user, claimedCells, claimCell, alerts, addAlert, logout, 
+    startInvasionSimulation, showReclaimButton, centerOnLostTiles,
+    showMissionAlert, setShowMissionAlert
+  } = useGameStore();
+  
+  const handleReclaim = () => {
+      addAlert("⚔️ Reclaim activated! GPS tracking starting...");
+      // Call global function exposed by ReclaimHandler  
+      if (typeof window !== 'undefined' && window.territoryRun_centerOnLostTiles) {
+          window.territoryRun_centerOnLostTiles();
+      }
+  };
 
   if (!user) {
       // Fallback if user is missing but token exists (rare race condition)
@@ -52,20 +65,30 @@ const Dashboard = () => {
                 </li>
             ))}
         </ul>
-
-        {/* Run Controls */}
-        <div className="run-controls">
-            {!isRunning ? (
-                <button className="run-btn start" onClick={startRun}>START RUN</button>
-            ) : (
-                <button className="run-btn finish" onClick={finishRun}>
-                    FINISH RUN <span className="blink">●</span>
-                </button>
-            )}
-        </div>
         
-        <button className="sim-btn" onClick={simulateAttack}>SIMULATE RIVAL ATTACK</button>
+        
+        <button className="sim-btn" onClick={startInvasionSimulation}>🔴 SIMULATE INVASION</button>
+        
+        {showReclaimButton && (
+            <button className="reclaim-btn" onClick={handleReclaim}>
+                ⚔️ RECLAIM TERRITORY
+            </button>
+        )}
       </div>
+
+      {/* Mission Alert Overlay */}
+      {showMissionAlert && (
+          <div className="mission-alert-overlay">
+              <div className="mission-content">
+                  <div className="mission-header">
+                      <AlertTriangle size={24} color="var(--neon-pink)" />
+                      <h2>MISSION CRITICAL</h2>
+                  </div>
+                  <p>Territory Compromised! Follow the Red Path to Reclaim.</p>
+                  <button className="mission-btn" onClick={() => setShowMissionAlert(false)}>DISMISS</button>
+              </div>
+          </div>
+      )}
 
       {/* Aesthetic decorative elements */}
       <div className="scanner-line"></div>
@@ -195,6 +218,27 @@ const Dashboard = () => {
             border-radius: 4px;
         }
         
+        .reclaim-btn {
+            margin-top: 10px;
+            width: 100%;
+            background: rgba(0, 255, 234, 0.2);
+            border: 2px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--neon-blue);
+            animation: pulse-reclaim 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-reclaim {
+            0%, 100% { box-shadow: 0 0 10px var(--neon-blue); }
+            50% { box-shadow: 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue); }
+        }
+        
         .run-controls {
             margin-top: 15px;
             width: 100%;
@@ -261,6 +305,77 @@ const Dashboard = () => {
             background-size: 100% 2px, 3px 100%;
             pointer-events: none;
         }
+
+        .mission-alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5000;
+            pointer-events: auto;
+            backdrop-filter: blur(5px);
+        }
+
+        .mission-content {
+            background: rgba(20, 0, 0, 0.9);
+            border: 2px solid var(--neon-pink);
+            padding: 2.5rem;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 0 50px rgba(255, 0, 85, 0.3);
+            animation: mission-emerge 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes mission-emerge {
+            from { transform: scale(0.8) translateY(50px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .mission-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .mission-header h2 {
+            margin: 0;
+            color: var(--neon-pink);
+            letter-spacing: 4px;
+            font-size: 1.5rem;
+        }
+
+        .mission-content p {
+            color: #ddd;
+            margin-bottom: 2rem;
+            line-height: 1.5;
+        }
+
+        .mission-btn {
+            background: var(--neon-pink);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-family: inherit;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .mission-btn:hover {
+            background: white;
+            color: var(--neon-pink);
+            box-shadow: 0 0 20px white;
+        }
+
       `}</style>
     </div>
   );

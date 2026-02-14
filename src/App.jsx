@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { GameProvider, useGameStore } from './hooks/useGameStore'
 import MapView from './components/Map/MapContainer'
 import Dashboard from './components/Dashboard/Dashboard'
+import LiveRunCard from './components/Dashboard/LiveRunCard'
 import Login from './components/Auth/Login'
 import Signup from './components/Auth/Signup'
 import './App.css'
@@ -40,6 +41,7 @@ const GameContent = () => {
         <div className="app-container">
             <MapView />
             <Dashboard />
+            <LiveRunCard />
         </div>
     );
 };
