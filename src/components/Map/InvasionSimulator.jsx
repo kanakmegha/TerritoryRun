@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Marker, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useGameStore } from '../../hooks/useGameStore';
-import { cellToLatLng } from 'h3-js';
+import { cellToLatLng, gridDisk, latLngToCell } from 'h3-js';
 
 const InvasionSimulator = () => {
     const map = useMap();
@@ -11,11 +11,10 @@ const InvasionSimulator = () => {
         claimedCells, 
         user, 
         claimTile,
-        lastPosition,
         setIsSimulating,
         setShowMissionAlert,
         setGhostPath,
-        setShowReclaimButton
+        setShowReclaimButton 
     } = useGameStore();
     
     const [currentInvasionPos, setCurrentInvasionPos] = useState(null);
@@ -23,50 +22,79 @@ const InvasionSimulator = () => {
     const [targetTiles, setTargetTiles] = useState([]);
     const [currentTargetIndex, setCurrentTargetIndex] = useState(0);
 
-    // Initial Setup: Define coordinate source
+    // Initial Setup: Spawn at the EDGE of territory
     useEffect(() => {
         if (isSimulating) {
-            // Rule 1: Coordinate Source - Filter user territories
-            const userTerritories = Object.entries(claimedCells)
-                .filter(([_, cell]) => cell.ownerId === user?.id)
-                .map(([index, _]) => {
-                    const coords = cellToLatLng(index);
-                    return { lat: coords[0], lng: coords[1] };
+            const userCellIndices = Object.entries(claimedCells)
+                .filter(([_, data]) => data.ownerId === user?.id)
+                .map(([index, _]) => index);
+
+            let startPos = null;
+
+            if (userCellIndices.length > 0) {
+                // Find "Edge" tiles: Neighbors of user tiles that are NOT user tiles
+                const edgeCandidates = new Set();
+                userCellIndices.forEach(cell => {
+                    const neighbors = gridDisk(cell, 1);
+                    neighbors.forEach(n => {
+                        if (!userCellIndices.includes(n)) {
+                            edgeCandidates.add(n);
+                        }
+                    });
                 });
 
-            if (userTerritories.length > 0) {
-                setTargetTiles(userTerritories);
-                setCurrentInvasionPos(userTerritories[0]);
-                setPathHistory([userTerritories[0]]);
-                setCurrentTargetIndex(1);
+                let spawnCell;
+                if (edgeCandidates.size > 0) {
+                    const candidatesArray = Array.from(edgeCandidates);
+                    spawnCell = candidatesArray[Math.floor(Math.random() * candidatesArray.length)];
+                } else {
+                    // If surrounded or something, just pick a user tile
+                    spawnCell = userCellIndices[Math.floor(Math.random() * userCellIndices.length)];
+                }
+
+                const coords = cellToLatLng(spawnCell);
+                startPos = { lat: coords[0], lng: coords[1] };
             } else {
-                // Fallback to Browser Geolocation
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const start = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        setTargetTiles([start]);
-                        setCurrentInvasionPos(start);
-                        setPathHistory([start]);
-                    },
-                    (err) => {
-                        // SF Fallback
-                        const start = { lat: 37.7749, lng: -122.4194 };
-                        setTargetTiles([start]);
-                        setCurrentInvasionPos(start);
-                        setPathHistory([start]);
-                    }
-                );
+                // Fallback SF
+                startPos = { lat: 37.7749, lng: -122.4194 };
             }
+
+            // Create a path that "hunts" - weaving through user tiles
+            const huntPath = [startPos];
+            const numPoints = 12 + Math.floor(Math.random() * 8); // 12-20 points
+            
+            for (let i = 0; i < numPoints; i++) {
+                if (userCellIndices.length > 0) {
+                    const targetCell = userCellIndices[Math.floor(Math.random() * userCellIndices.length)];
+                    const coords = cellToLatLng(targetCell);
+                    huntPath.push({ lat: coords[0], lng: coords[1] });
+                } else {
+                    // Random wander if no tiles
+                    const last = huntPath[huntPath.length - 1];
+                    huntPath.push({ 
+                        lat: last.lat + (Math.random() - 0.5) * 0.005, 
+                        lng: last.lng + (Math.random() - 0.5) * 0.005 
+                    });
+                }
+            }
+
+            setTargetTiles(huntPath);
+            setCurrentInvasionPos(huntPath[0]);
+            setPathHistory([huntPath[0]]);
+            setCurrentTargetIndex(1);
+            
+            // Initial focus
+            map.setView([huntPath[0].lat, huntPath[0].lng], 16);
+            
         } else {
-            // Reset when not simulating
             setCurrentInvasionPos(null);
             setPathHistory([]);
             setTargetTiles([]);
             setCurrentTargetIndex(0);
         }
-    }, [isSimulating, user?.id]); // Re-run when simulation starts
+    }, [isSimulating, user?.id]);
 
-    // The Movement Loop
+    // Movement Loop (1000ms)
     useEffect(() => {
         if (!isSimulating || !currentInvasionPos || targetTiles.length === 0) return;
 
@@ -74,20 +102,23 @@ const InvasionSimulator = () => {
             setCurrentInvasionPos(prev => {
                 if (!prev) return null;
 
+                const target = targetTiles[currentTargetIndex] || targetTiles[0];
+                
+                // Move by small increment towards target
+                const step = 0.0001;
+                const dLat = target.lat - prev.lat;
+                const dLng = target.lng - prev.lng;
+                const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+
                 let nextLat = prev.lat;
                 let nextLng = prev.lng;
 
-                // Rule: Small increment towards next tile
-                const target = targetTiles[currentTargetIndex] || targetTiles[0];
-                const deltaLat = target.lat > prev.lat ? 0.0001 : -0.0001;
-                const deltaLng = target.lng > prev.lng ? 0.0001 : -0.0001;
-
-                // Stop incrementing if we are very close to the target
-                if (Math.abs(target.lat - prev.lat) < 0.0001 && Math.abs(target.lng - prev.lng) < 0.0001) {
+                if (distance < step) {
+                    // Close enough to pivot to next target
                     if (currentTargetIndex < targetTiles.length - 1) {
                         setCurrentTargetIndex(prevIdx => prevIdx + 1);
                     } else {
-                        // END OF SIMULATION
+                        // End of Invasion
                         setIsSimulating(false);
                         setShowMissionAlert(true);
                         setShowReclaimButton(true);
@@ -96,32 +127,27 @@ const InvasionSimulator = () => {
                         return prev;
                     }
                 } else {
-                    nextLat += deltaLat;
-                    nextLng += deltaLng;
+                    nextLat += (dLat / distance) * step;
+                    nextLng += (dLng / distance) * step;
                 }
 
                 const newPos = { lat: nextLat, lng: nextLng };
-
-                // Rule: Update Ghost Path
-                setPathHistory(prevPath => [...prevPath, newPos]);
-
+                setPathHistory(prevHistory => [...prevHistory, newPos]);
+                
                 // Rule: Map Tracking
                 map.setView([newPos.lat, newPos.lng], map.getZoom());
 
-                // Rule: Tile Flipping
-                claimTile(newPos.lat, newPos.lng, 'Rival', 'red');
+                // Rule: FLIP TILES RED IMMEDIATELY
+                claimTile(newPos.lat, newPos.lng, 'rival_bot', 'red');
 
                 return newPos;
             });
-        }, 1000); // 1000ms interval as requested
+        }, 1000);
 
         return () => clearInterval(interval);
     }, [isSimulating, targetTiles, currentTargetIndex, map]);
 
-    if (!isSimulating || !currentInvasionPos) {
-        // Still render ghost path if it was recently active (optional, but keep for visual)
-        return null;
-    }
+    if (!isSimulating || !currentInvasionPos) return null;
 
     const attackerIcon = L.divIcon({
         className: 'attacker-marker',
@@ -136,33 +162,39 @@ const InvasionSimulator = () => {
 
     return (
         <>
-            {/* Rule: Ghost Trail */}
+            {/* Real-time Ghost Path */}
             {pathHistory.length > 1 && (
                 <Polyline 
                     positions={pathHistory.map(p => [p.lat, p.lng])} 
                     pathOptions={{ 
                         color: 'red', 
-                        weight: 5, 
-                        dashArray: '5, 10' 
+                        weight: 4, 
+                        dashArray: '5, 8',
+                        opacity: 0.6
                     }} 
                 />
             )}
 
-            <Marker position={[currentInvasionPos.lat, currentInvasionPos.lng]} icon={attackerIcon} />
+            {/* Red Dot (High Z-Index) */}
+            <Marker 
+                position={[currentInvasionPos.lat, currentInvasionPos.lng]} 
+                icon={attackerIcon} 
+                zIndexOffset={1000}
+            />
 
             <style>{`
                 .attacker-dot {
-                    width: 16px;
-                    height: 16px;
-                    background: red;
+                    width: 18px;
+                    height: 18px;
+                    background: #ff0000;
                     border-radius: 50%;
-                    box-shadow: 0 0 15px red;
-                    animation: pulse 1s infinite;
+                    box-shadow: 0 0 20px #ff0000, 0 0 10px #000;
+                    border: 2px solid white;
+                    animation: pulse-red 1s infinite alternate;
                 }
-                @keyframes pulse {
-                    0% { transform: scale(1); opacity: 1; }
-                    50% { transform: scale(1.3); opacity: 0.7; }
-                    100% { transform: scale(1); opacity: 1; }
+                @keyframes pulse-red {
+                    from { transform: scale(1); filter: brightness(1); }
+                    to { transform: scale(1.2); filter: brightness(1.5); }
                 }
             `}</style>
         </>

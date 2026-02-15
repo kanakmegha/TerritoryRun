@@ -6,13 +6,14 @@ import { useMap } from 'react-leaflet';
 
 const Dashboard = () => {
   const { 
-    user, claimedCells, claimCell, alerts, addAlert, logout, 
+    user, claimedCells, claimCell, alerts, addAlert, logout, isSimulating,
     startInvasionSimulation, showReclaimButton, centerOnLostTiles,
-    showMissionAlert, setShowMissionAlert
+    showMissionAlert, setShowMissionAlert, startContinuousRun
   } = useGameStore();
   
   const handleReclaim = () => {
       addAlert("⚔️ Reclaim activated! GPS tracking starting...");
+      startContinuousRun(); // Activate real GPS tracking
       // Call global function exposed by ReclaimHandler  
       if (typeof window !== 'undefined' && window.territoryRun_centerOnLostTiles) {
           window.territoryRun_centerOnLostTiles();
@@ -67,11 +68,13 @@ const Dashboard = () => {
         </ul>
         
         
-        <button className="sim-btn" onClick={startInvasionSimulation}>🔴 SIMULATE INVASION</button>
+        {!showReclaimButton && !isSimulating && (
+            <button className="sim-btn" onClick={startInvasionSimulation}>🔴 TEST INVASION</button>
+        )}
         
         {showReclaimButton && (
             <button className="reclaim-btn" onClick={handleReclaim}>
-                ⚔️ RECLAIM TERRITORY
+                ⚔️ START RECLAIM
             </button>
         )}
       </div>
@@ -281,6 +284,23 @@ const Dashboard = () => {
         }
         .sim-btn:hover {
             background: rgba(255, 0, 255, 0.4);
+        }
+
+        .sim-v2-btn {
+            margin-top: 8px;
+            width: 100%;
+            background: rgba(0, 255, 234, 0.1);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.7rem;
+            border-radius: 4px;
+        }
+
+        .sim-v2-btn:hover {
+            background: rgba(0, 255, 234, 0.3);
         }
 
         h1 {
