@@ -40,6 +40,7 @@ const Signup = ({ onSwitch }) => {
                 value={formData.username} 
                 onChange={handleChange} 
                 required 
+                autoComplete="username"
             />
         </div>
         <div className="form-group">
@@ -50,6 +51,7 @@ const Signup = ({ onSwitch }) => {
                 value={formData.email} 
                 onChange={handleChange} 
                 required 
+                autoComplete="email"
             />
         </div>
         <div className="form-group">
@@ -60,6 +62,7 @@ const Signup = ({ onSwitch }) => {
                 value={formData.password} 
                 onChange={handleChange} 
                 required 
+                autoComplete="new-password"
             />
         </div>
         <div className="form-group">

@@ -32,6 +32,7 @@ const Login = ({ onSwitch }) => {
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 required 
+                autoComplete="email"
             />
         </div>
         <div className="form-group">
@@ -41,6 +42,7 @@ const Login = ({ onSwitch }) => {
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 required 
+                autoComplete="current-password"
             />
         </div>
         {error && <p className="error-msg">{error}</p>}
