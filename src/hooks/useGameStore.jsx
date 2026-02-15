@@ -112,7 +112,7 @@ export const GameProvider = ({ children }) => {
           }
           
           if (!user) {
-            const userRes = await axios.get('/api/users/me');
+            const userRes = await axios.get('/api/auth/me');
             setUser(userRes.data);
           }
       } catch (err) {

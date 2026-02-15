@@ -4,6 +4,31 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
+// Middleware to verify token inside auth routes
+const auth = (req, res, next) => {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ message: 'No protocol token found' });
+    
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded.userId;
+        next();
+    } catch (e) {
+        res.status(401).json({ message: 'Invalid token' });
+    }
+};
+
+// Get current user profile
+router.get('/me', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user).select('-password');
+        if (!user) return res.status(404).json({ message: 'User not found' });
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error retrieving profile' });
+    }
+});
+
 // Register
 router.post('/register', async (req, res) => {
   try {
