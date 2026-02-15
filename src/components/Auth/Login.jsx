@@ -9,7 +9,9 @@ const Login = ({ onSwitch }) => {
   const { login } = useGameStore();
 
   const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const result = await login({ email, password });
       if (!result.success) {

@@ -17,7 +17,9 @@ const Signup = ({ onSwitch }) => {
   };
 
   const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const result = await signup(formData);
       if (!result.success) {
