@@ -8,6 +8,7 @@ const Signup = ({ onSwitch }) => {
       password: '',
       color: '#00f3ff'
   });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signup } = useGameStore();
 
