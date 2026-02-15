@@ -27,7 +27,8 @@ const Signup = ({ onSwitch }) => {
           setError(result.message);
       }
     } catch (err) {
-      setError('Registration failed');
+      console.error("Signup internal error:", err);
+      setError('Registration failed: ' + err.message);
     } finally {
       setLoading(false);
     }
