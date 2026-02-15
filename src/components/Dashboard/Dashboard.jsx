@@ -5,6 +5,8 @@ import { Trophy, Map, Activity, AlertTriangle } from 'lucide-react';
 
 const Dashboard = () => {
   const { 
+    user, alerts, logout, isSimulating,
+    startInvasionSimulation, showReclaimButton,
     showMissionAlert, setShowMissionAlert, startContinuousRun,
     currentRun, addAlert
   } = useGameStore();
