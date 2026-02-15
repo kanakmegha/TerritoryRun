@@ -25,6 +25,9 @@ const LiveRunCard = () => {
                         border-radius: 12px;
                         backdrop-filter: blur(10px);
                         box-shadow: 0 0 20px rgba(0, 255, 234, 0.3);
+                        width: auto;
+                        min-width: 250px;
+                        max-width: 90%;
                     }
 
                     .start-tracking-btn {
@@ -109,7 +112,9 @@ const LiveRunCard = () => {
                     border-radius: 16px;
                     backdrop-filter: blur(10px);
                     box-shadow: 0 0 30px rgba(0, 255, 234, 0.5);
-                    min-width: 400px;
+                    width: 90%;
+                    max-width: 450px;
+                    min-width: unset;
                 }
 
                 .live-run-card.active {
@@ -183,6 +188,24 @@ const LiveRunCard = () => {
 
                 .stop-tracking-btn:active {
                     transform: scale(0.98);
+                }
+
+                @media (max-width: 768px) {
+                    /* Hide the default card button on mobile since we have the FAB in Dashboard */
+                    .live-run-card:not(.active) {
+                        display: none;
+                    }
+                    .live-run-card.active {
+                        bottom: 10px;
+                        padding: 15px;
+                    }
+                    .run-stats {
+                        flex-direction: column;
+                        gap: 10px;
+                    }
+                    .stat-divider {
+                        display: none;
+                    }
                 }
             `}</style>
         </div>

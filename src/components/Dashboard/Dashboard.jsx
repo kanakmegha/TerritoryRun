@@ -5,9 +5,8 @@ import { Trophy, Map, Activity, AlertTriangle } from 'lucide-react';
 
 const Dashboard = () => {
   const { 
-    user, alerts, logout, isSimulating,
-    startInvasionSimulation, showReclaimButton,
-    showMissionAlert, setShowMissionAlert, startContinuousRun
+    showMissionAlert, setShowMissionAlert, startContinuousRun,
+    currentRun, addAlert
   } = useGameStore();
   
   // 1. Safety Guard: Prevent crash if user stats haven't loaded yet
@@ -35,8 +34,9 @@ const Dashboard = () => {
   };
 
   // 2. Rank Calculation Logic with fallback to avoid Division by Zero
-  const rankValue = user.stats.territories > 0 
-    ? `#${Math.floor(1000 / (user.stats.territories + 1))}` 
+  const territories = user.stats?.territories || 0;
+  const rankValue = territories > 0 
+    ? `#${Math.floor(1000 / (territories + 1))}` 
     : "N/A";
 
   return (
@@ -60,12 +60,12 @@ const Dashboard = () => {
         />
         <StatsCard 
             label="Territories" 
-            value={user.stats.territories || 0} 
+            value={territories} 
             icon={Map} 
         />
         <StatsCard 
             label="Distance" 
-            value={`${((user.stats.territories || 0) * 0.1).toFixed(1)} km`} 
+            value={`${(territories * 0.1).toFixed(1)} km`} 
             icon={Activity} 
         />
       </div>
@@ -121,6 +121,15 @@ const Dashboard = () => {
           </div>
       )}
 
+      {/* Mobile Floating Action Button (FAB) */}
+      {!currentRun.isActive && !isSimulating && (
+        <div className="mobile-fab-container">
+          <button className="fab-btn" onClick={startContinuousRun}>
+            🏃 START TRACKING
+          </button>
+        </div>
+      )}
+
       <div className="scanner-line"></div>
 
       <style>{`
@@ -162,6 +171,10 @@ const Dashboard = () => {
           flex-direction: column;
           box-sizing: border-box;
           z-index: 1000;
+        }
+
+        .dashboard-container > * {
+          pointer-events: auto;
         }
 
         .dashboard-header {
@@ -251,6 +264,63 @@ const Dashboard = () => {
         @keyframes scan {
           0% { top: 0; }
           100% { top: 100%; }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-height: 700px) {
+          .stats-grid {
+            max-height: 80px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+          }
+          .defend-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-bottom: 70px; /* Space for FAB */
+          }
+          .defend-list ul {
+            max-height: 80px;
+            overflow-y: auto;
+          }
+        }
+
+        .mobile-fab-container {
+          display: none;
+          position: fixed;
+          bottom: 25px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 2000;
+          width: 80%;
+          max-width: 300px;
+          pointer-events: auto;
+        }
+
+        .fab-btn {
+          width: 100%;
+          background: var(--neon-blue);
+          color: black;
+          border: none;
+          padding: 15px 25px;
+          font-weight: 900;
+          font-family: inherit;
+          border-radius: 30px;
+          box-shadow: 0 0 20px var(--neon-blue);
+          cursor: pointer;
+          font-size: 1rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .fab-btn:hover {
+          transform: scale(1.05);
+          box-shadow: 0 0 30px var(--neon-blue);
+        }
+
+        @media (max-width: 768px) {
+          .mobile-fab-container {
+            display: block;
+          }
         }
       `}</style>
     </div>
