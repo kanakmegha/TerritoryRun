@@ -168,7 +168,7 @@ const Dashboard = () => {
           width: 100%;
           height: 100svh; /* Fix for mobile address bar */
           pointer-events: none;
-          padding: 1.5rem;
+          padding: 10px; /* Reduced padding for mobile edges */
           display: flex;
           flex-direction: column;
           box-sizing: border-box;
@@ -209,6 +209,8 @@ const Dashboard = () => {
             gap: 0.5rem;
             pointer-events: auto;
             margin-top: 1.5rem;
+            position: relative; /* Added for z-index */
+            z-index: 10000; /* Force to top */
         }
 
         .defend-list {
@@ -274,11 +276,23 @@ const Dashboard = () => {
         }
 
         /* Mobile Adjustments */
+        @media (max-width: 600px) {
+          .stats-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: auto;
+            max-height: unset;
+            overflow: visible;
+          }
+          .stats-grid > * {
+            width: 100%;
+          }
+        }
+
         @media (max-height: 700px) {
           .stats-grid {
-            max-height: 80px;
-            overflow-y: auto;
-            margin-top: 0.5rem;
+            /* Keep scrollable only if height is very small and NOT in column mode */
           }
           .defend-list {
             max-height: 150px;
