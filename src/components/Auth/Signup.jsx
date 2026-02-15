@@ -18,6 +18,7 @@ const Signup = ({ onSwitch }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    await new Promise(r => setTimeout(r, 10)); // Yield to main thread to prevent UI lockup
     setLoading(true);
     setError('');
     try {
