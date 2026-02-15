@@ -287,7 +287,7 @@ export const GameProvider = ({ children }) => {
 
   return (
     <GameContext.Provider value={{ 
-        user, token, login, logout, 
+        user, token, login, signup, logout, 
         claimedCells, 
         alerts, addAlert,
         // Real-time GPS tracking
