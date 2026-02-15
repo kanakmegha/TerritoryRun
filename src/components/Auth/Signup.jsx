@@ -8,7 +8,7 @@ const Signup = ({ onSwitch }) => {
       password: '',
       color: '#00f3ff'
   });
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { signup } = useGameStore();
 
   const handleChange = (e) => {
@@ -16,9 +16,7 @@ const Signup = ({ onSwitch }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    
+    setLoading(true);
     try {
       const result = await signup(formData);
       if (!result.success) {
@@ -26,6 +24,8 @@ const Signup = ({ onSwitch }) => {
       }
     } catch (err) {
       setError('Registration failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +76,9 @@ const Signup = ({ onSwitch }) => {
             />
         </div>
         {error && <p className="error-msg">{error}</p>}
-        <button type="submit" className="cyber-btn">INITIALIZE</button>
+        <button type="submit" className={`cyber-btn ${loading ? 'loading' : ''}`} disabled={loading}>
+            {loading ? 'INITIALIZING...' : 'INITIALIZE'}
+        </button>
       </form>
       <p className="switch-text">
         Already an agent? <span onClick={onSwitch}>Access System</span>

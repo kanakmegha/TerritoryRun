@@ -5,12 +5,11 @@ const Login = ({ onSwitch }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useGameStore();
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    
+    setLoading(true);
     try {
       const result = await login({ email, password });
       if (!result.success) {
@@ -18,6 +17,8 @@ const Login = ({ onSwitch }) => {
       }
     } catch (err) {
       setError('Login failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -46,7 +47,9 @@ const Login = ({ onSwitch }) => {
             />
         </div>
         {error && <p className="error-msg">{error}</p>}
-        <button type="submit" className="cyber-btn">LOGIN</button>
+        <button type="submit" className={`cyber-btn ${loading ? 'loading' : ''}`} disabled={loading}>
+            {loading ? 'ACCESSING...' : 'LOGIN'}
+        </button>
       </form>
       <p className="switch-text">
         New Runner? <span onClick={onSwitch}>Initialize Protocol</span>
