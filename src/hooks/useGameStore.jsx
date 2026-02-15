@@ -78,9 +78,10 @@ export const GameProvider = ({ children }) => {
         addAlert(`✨ Account created! Welcome, ${newUserData.username}.`);
         return { success: true, user: newUserData, token: newUserToken };
     } catch (err) {
-        const msg = err.response?.data?.message || "Signup failed";
-        addAlert(`❌ ${msg}`);
-        return { success: false, message: msg };
+        const msg = err.response?.data?.error || err.response?.data?.message || "Signup failed";
+        const debug = err.response?.data?.debug_info ? ` (${err.response.data.debug_info})` : "";
+        addAlert(`❌ ${msg}${debug}`);
+        return { success: false, message: `${msg}${debug}` };
     }
   };
 
