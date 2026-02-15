@@ -5,9 +5,12 @@ import { latLngToCell, cellToLatLng } from 'h3-js';
 const GameContext = createContext();
 
 // 1. DYNAMIC API URL: Detects if you're on local machine or deployed
-const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+/* const API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
     ? 'http://localhost:5001' 
-    : (typeof window !== 'undefined' ? window.location.origin : '');
+    : (typeof window !== 'undefined' ? window.location.origin : ''); */
+    // This ensures that on Vercel, the app talks to itself correctly
+const API_URL = window.location.origin; 
+
 
 axios.defaults.baseURL = API_URL;
 
@@ -48,14 +51,14 @@ export const GameProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
         const res = await axios.post('/api/auth/login', credentials);
-        const { user, token } = res.data;
-        setUser(user);
-        setToken(token);
-        localStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const { user: userData, token: userToken } = res.data;
+        setUser(userData);
+        setToken(userToken);
+        localStorage.setItem('token', userToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
         refreshMap();
-        addAlert(`👋 Welcome back, ${user.username}!`);
-        return { success: true };
+        addAlert(`👋 Welcome back, ${userData.username}!`);
+        return { success: true, user: userData, token: userToken };
     } catch (err) {
         const msg = err.response?.data?.message || "Login failed";
         addAlert(`❌ ${msg}`);
@@ -65,15 +68,15 @@ export const GameProvider = ({ children }) => {
 
   const signup = async (userData) => {
     try {
-        const res = await axios.post('/api/auth/signup', userData);
-        const { user, token } = res.data;
-        setUser(user);
-        setToken(token);
-        localStorage.setItem('token', token);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        const res = await axios.post('/api/auth/register', userData);
+        const { user: newUserData, token: newUserToken } = res.data;
+        setUser(newUserData);
+        setToken(newUserToken);
+        localStorage.setItem('token', newUserToken);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${newUserToken}`;
         refreshMap();
-        addAlert(`✨ Account created! Welcome, ${user.username}.`);
-        return { success: true };
+        addAlert(`✨ Account created! Welcome, ${newUserData.username}.`);
+        return { success: true, user: newUserData, token: newUserToken };
     } catch (err) {
         const msg = err.response?.data?.message || "Signup failed";
         addAlert(`❌ ${msg}`);

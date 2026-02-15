@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const Signup = ({ onSwitch }) => {
@@ -10,7 +9,7 @@ const Signup = ({ onSwitch }) => {
       color: '#00f3ff'
   });
   const [error, setError] = useState('');
-  const { login } = useGameStore();
+  const { signup } = useGameStore();
 
   const handleChange = (e) => {
       setFormData({...formData, [e.target.name]: e.target.value});
@@ -21,19 +20,12 @@ const Signup = ({ onSwitch }) => {
     setError('');
     
     try {
-      const res = await axios.post('/api/auth/register', formData);
-      login(res.data.token, res.data.user);
-    } catch (err) {
-      console.error("Full Registration Error:", err);
-      console.log("Error Response Data:", err.response?.data);
-      console.log("Error Response Status:", err.response?.status);
-      
-      if (err.response?.status === 403) {
-          // If the server sent a specific message, show it. Otherwise show generic IP warning.
-          setError(err.response?.data?.message || "Access Denied: Please check your MongoDB IP Whitelist (Network Access).");
-      } else {
-          setError(err.response?.data?.message || 'Registration failed');
+      const result = await signup(formData);
+      if (!result.success) {
+          setError(result.message);
       }
+    } catch (err) {
+      setError('Registration failed');
     }
   };
 

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import axios from 'axios';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const Login = ({ onSwitch }) => {
@@ -13,10 +12,12 @@ const Login = ({ onSwitch }) => {
     setError('');
     
     try {
-      const res = await axios.post('/api/auth/login', { email, password });
-      login(res.data.token, res.data.user);
+      const result = await login({ email, password });
+      if (!result.success) {
+          setError(result.message);
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      setError('Login failed');
     }
   };
 

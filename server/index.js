@@ -26,6 +26,7 @@ app.use('/api/game', gameRoutes);
 
 // Health check for Vercel deployment verification
 app.get('/', (req, res) => res.send('Territory Run API Operational'));
+app.get('/api', (req, res) => res.send('Territory Run API Operational (Prefix OK)'));
 
 // 2. STABLE DB CONNECTION: Use the URI from Vercel Environment Variables
 if (process.env.MONGODB_URI) {
