@@ -169,7 +169,7 @@ export const GameProvider = ({ children }) => {
   };
 
   const startContinuousRun = () => {
-      setCurrentRun({ isActive: true, path: [] });
+      setCurrentRun({ isActive: true, path: [], distance: 0 });
       setTileDistanceMap({});
       addAlert("🏃 Run started! Territory acquisition active.");
   };
@@ -198,7 +198,8 @@ export const GameProvider = ({ children }) => {
 
       setCurrentRun(prev => ({
           ...prev,
-          path: [...prev.path, [lat, lng]]
+          path: [...prev.path, [lat, lng]],
+          distance: (prev.distance || 0) + distanceMoved
       }));
 
       const now = Date.now();

@@ -166,7 +166,7 @@ const Dashboard = () => {
           top: 0;
           left: 0;
           width: 100%;
-          height: 100%;
+          height: 100svh; /* Fix for mobile address bar */
           pointer-events: none;
           padding: 1.5rem;
           display: flex;
@@ -216,34 +216,39 @@ const Dashboard = () => {
             background: rgba(20, 0, 0, 0.8);
             border: 1px solid var(--neon-pink);
             border-radius: 8px;
-            padding: 1rem;
+            padding: 1.5rem; /* Increased padding */
             margin-top: auto; 
             margin-bottom: 20px;
             max-width: 100%;
+            z-index: 9999; /* Ensure it stays on top */
         }
         
         .sim-btn {
-            margin-top: 10px;
+            margin-top: 15px; /* Increased margin */
             width: 100%;
             background: rgba(255, 0, 85, 0.2);
             border: 1px solid var(--neon-pink);
             color: var(--neon-pink);
-            padding: 10px;
+            padding: 15px; /* Better touch target */
+            font-size: 1rem; /* Easier to read */
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
             cursor: pointer;
+            z-index: 9999;
         }
 
         .reclaim-btn {
             width: 100%;
             background: var(--neon-blue);
             color: black;
-            padding: 15px;
+            padding: 18px; /* Massive touch target */
+            font-size: 1.1rem;
             font-weight: 900;
             border: none;
             box-shadow: 0 0 20px var(--neon-blue);
             animation: pulse-reclaim 1.5s infinite;
+            z-index: 9999;
         }
 
         @keyframes pulse-reclaim {
