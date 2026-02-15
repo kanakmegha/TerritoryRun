@@ -22,6 +22,8 @@ export const GameProvider = ({ children }) => {
   const [currentRun, setCurrentRun] = useState({ isActive: false, path: [] });
   const [tileDistanceMap, setTileDistanceMap] = useState({}); // { hexIndex: metersWithinTile }
   const [lastPosition, setLastPosition] = useState(null);
+  const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle', 'requesting', 'locked', 'error'
+  const [gpsError, setGpsError] = useState(null);
 
   // Unified Invasion Simulation State
   const [isSimulating, setIsSimulating] = useState(false);
@@ -40,13 +42,58 @@ export const GameProvider = ({ children }) => {
       stats: { territories: 88 }
   };
 
-  // 2. UPDATED AUTH HEADER: Automatically applies token when found
+  // 2. UPDATED AUTH HEADER & GPS INIT
   useEffect(() => {
     if (token) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         refreshMap();
+        startGpsTracking();
     }
+    
+    return () => {
+        if (window.gpsWatcherId) {
+            navigator.geolocation.clearWatch(window.gpsWatcherId);
+        }
+    };
   }, [token]);
+
+  const startGpsTracking = () => {
+    if (!navigator.geolocation) {
+        setGpsStatus('error');
+        setGpsError('Geolocation is not supported by your browser.');
+        return;
+    }
+
+    setGpsStatus('requesting');
+    
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+    };
+
+    const success = (position) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        setLastPosition({ lat, lng });
+        setGpsStatus('locked');
+        setGpsError(null);
+        processGPSUpdate(lat, lng);
+    };
+
+    const error = (err) => {
+        console.error("GPS Watcher Error:", err);
+        if (err.code === 1) {
+            setGpsStatus('error');
+            setGpsError('GPS Access Denied. Please enable location in browser settings to play.');
+            addAlert("❌ GPS Access Denied");
+        } else if (gpsStatus === 'requesting') {
+            // Only show error if we haven't locked yet
+            addAlert("⚠️ GPS Signal Weak...");
+        }
+    };
+
+    window.gpsWatcherId = navigator.geolocation.watchPosition(success, error, options);
+  };
 
   const login = async (credentials) => {
     try {
@@ -291,7 +338,8 @@ export const GameProvider = ({ children }) => {
         claimedCells, 
         alerts, addAlert,
         // Real-time GPS tracking
-        currentRun, startContinuousRun, stopContinuousRun, processGPSUpdate, lastPosition,
+        currentRun, startContinuousRun, stopContinuousRun, processGPSUpdate, 
+        lastPosition, gpsStatus, gpsError, startGpsTracking,
         // Invasion simulation
         isSimulating, claimTile, setIsSimulating,
         startInvasionSimulation, lostTiles, showReclaimButton, centerOnLostTiles,

@@ -17,92 +17,29 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 const PlayerMarker = () => {
-    const [position, setPosition] = useState(null);
     const map = useMap();
-    const { processGPSUpdate, currentRun } = useGameStore();
-    const [gpsActive, setGpsActive] = useState(false);
+    const { lastPosition, gpsStatus } = useGameStore();
     const hasCentered = useRef(false);
     const markerRef = useRef(null);
 
+    // Auto-center on first valid position
     useEffect(() => {
-        if (!gpsActive) return;
+        if (lastPosition && !hasCentered.current) {
+            map.flyTo([lastPosition.lat, lastPosition.lng], 16);
+            hasCentered.current = true;
+        }
+    }, [lastPosition, map]);
 
-        const onLocationFound = (e) => {
-            const newLat = e.latlng.lat;
-            const newLng = e.latlng.lng;
-            
-            if (markerRef.current) {
-                markerRef.current.setLatLng([newLat, newLng]);
-            } else {
-                setPosition(e.latlng);
-            }
-            
-            processGPSUpdate(newLat, newLng);
-            
-            if (!hasCentered.current) {
-                const currentZoom = map.getZoom();
-                const targetZoom = currentZoom < 15 ? 16 : currentZoom;
-                map.flyTo(e.latlng, targetZoom);
-                hasCentered.current = true;
-            }
-        };
-
-        const onLocationError = (e) => {
-            console.error("Geolocation error:", e.message);
-            setGpsActive(false);
-        };
-
-        map.locate({ watch: true, enableHighAccuracy: true });
-        map.on("locationfound", onLocationFound);
-        map.on("locationerror", onLocationError);
-
-        return () => {
-            map.stopLocate();
-            map.off("locationfound", onLocationFound);
-            map.off("locationerror", onLocationError);
-        };
-    }, [map, gpsActive, processGPSUpdate]); 
+    if (gpsStatus !== 'locked' || !lastPosition) return null;
     
     // Removed: Click-to-teleport functionality (real GPS only)
 
-    if (!gpsActive && !position) {
-        return (
-            <div className="gps-init-overlay">
-                <button className="gps-btn" onClick={() => setGpsActive(true)}>
-                    🛰️ INITIALIZE GPS
-                </button>
-                <style>{`
-                    .gps-init-overlay {
-                        position: absolute;
-                        bottom: 100px;
-                        right: 20px;
-                        z-index: 1000;
-                    }
-                    .gps-btn {
-                        background: rgba(0,0,0,0.8);
-                        color: #00ffea;
-                        border: 1px solid #00ffea;
-                        padding: 10px 15px;
-                        cursor: pointer;
-                        font-family: inherit;
-                        font-weight: bold;
-                        box-shadow: 0 0 10px rgba(0,255,234,0.3);
-                        border-radius: 4px;
-                    }
-                    .gps-btn:hover {
-                        background: #00ffea;
-                        color: black;
-                        box-shadow: 0 0 20px #00ffea;
-                    }
-                `}</style>
-            </div>
-        );
-    }
+    // Removed: Manual GPS trigger button (centralized in App.jsx flow)
 
-    return position === null ? null : (
+    return (
         <>
             <Marker 
-                position={position}
+                position={[lastPosition.lat, lastPosition.lng]}
                 ref={markerRef}
                 icon={L.divIcon({
                     className: 'gps-marker',
@@ -111,7 +48,7 @@ const PlayerMarker = () => {
                     iconAnchor: [10, 10]
                 })}
             >
-                <Popup>You are here</Popup>
+                <Popup>Protocol Active: Tracking Runner</Popup>
             </Marker>
             
             {/* CSS for glowing GPS marker */}
