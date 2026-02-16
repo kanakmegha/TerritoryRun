@@ -14,6 +14,10 @@ const API_URL = window.location.origin;
 
 axios.defaults.baseURL = API_URL;
 
+// DEVELOPER TESTING MODE CONSTANTS
+const H3_RESOLUTION = 11; // Level 11 = ~25m hexes (Perfect for backyard testing)
+const CLAIM_THRESHOLD = 1; // 1 meter = Instant claim for testing
+
 export const GameProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -245,7 +249,7 @@ export const GameProvider = ({ children }) => {
 
       if (!currentRun.isActive) return;
 
-      const currentHex = latLngToCell(lat, lng, 9);
+      const currentHex = latLngToCell(lat, lng, H3_RESOLUTION);
       const prevPos = currentRun.path[currentRun.path.length - 1];
       let distanceMoved = 0;
 
@@ -268,7 +272,7 @@ export const GameProvider = ({ children }) => {
       // RECLAIM MECHANIC: Priority 'Blue' overwrite
       const isContested = contestedTiles[currentHex] !== undefined;
       
-      if (tileDistance >= 50 || isContested) {
+      if (tileDistance >= CLAIM_THRESHOLD || isContested) {
           if (isContested) {
               claimTile(lat, lng, user.id, user.color);
               addAlert(`⚔️ Sector RECLAIMED from Rival!`);
@@ -300,7 +304,7 @@ export const GameProvider = ({ children }) => {
    * Used by simulation for Rival takeover and Priority Reclaim
    */
   const claimTile = async (lat, lng, ownerId = 'rival_bot', color = '#ff0000', forceIndex = null) => {
-      const cellIndex = forceIndex || latLngToCell(lat, lng, 9);
+      const cellIndex = forceIndex || latLngToCell(lat, lng, H3_RESOLUTION);
       const now = Date.now();
 
       // Rule: Priority Reclaim
@@ -393,6 +397,19 @@ export const GameProvider = ({ children }) => {
       return [avgLat, avgLng];
   };
 
+  /**
+   * DEVELOPER MODE: Nudge coordinates to test tracking without walking
+   */
+  const simulateStep = () => {
+      if (!lastPosition) return;
+      // Nudge by approx 10 meters
+      const nextLat = lastPosition.lat + (Math.random() - 0.5) * 0.0002;
+      const nextLng = lastPosition.lng + (Math.random() - 0.5) * 0.0002;
+      
+      addAlert("🛠️ SIMULATED STEP: Coordinate nudge applied");
+      processGPSUpdate(nextLat, nextLng);
+  };
+
   return (
     <GameContext.Provider value={{ 
         user, token, login, signup, logout, 
@@ -405,7 +422,8 @@ export const GameProvider = ({ children }) => {
         isSimulating, claimTile, setIsSimulating,
         startInvasionSimulation, lostTiles, showReclaimButton, centerOnLostTiles,
         contestedTiles, ghostPath, setGhostPath, reclaimedPathSegments, setReclaimedPathSegments, 
-        showMissionAlert, setShowMissionAlert, setShowReclaimButton, Rival_User
+        showMissionAlert, setShowMissionAlert, setShowReclaimButton, Rival_User,
+        simulateStep, H3_RESOLUTION
     }}>
       {children}
     </GameContext.Provider>

@@ -60,7 +60,12 @@ const LiveRunCard = () => {
         );
     }
 
-    const distanceKm = (currentRun.distance / 1000).toFixed(2);
+    const formatDistance = (meters) => {
+        if (meters < 500) return `${meters.toFixed(1)} m`;
+        return `${(meters / 1000).toFixed(2)} km`;
+    };
+
+    const distanceDisplay = formatDistance(currentRun.distance || 0);
     const paceMinKm = currentRun.pace > 0 ? currentRun.pace.toFixed(1) : '--';
 
     return (
@@ -70,7 +75,7 @@ const LiveRunCard = () => {
                     <Activity size={16} className="stat-icon" />
                     <div className="stat-content">
                         <div className="stat-label">Distance</div>
-                        <div className="stat-value">{distanceKm} km</div>
+                        <div className="stat-value">{distanceDisplay}</div>
                     </div>
                 </div>
 

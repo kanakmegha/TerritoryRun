@@ -8,7 +8,7 @@ const Dashboard = () => {
     user, alerts, logout, isSimulating,
     startInvasionSimulation, showReclaimButton,
     showMissionAlert, setShowMissionAlert, startContinuousRun,
-    currentRun, addAlert
+    currentRun, addAlert, simulateStep
   } = useGameStore();
   
   // 1. Safety Guard: Prevent crash if user stats haven't loaded yet
@@ -41,6 +41,17 @@ const Dashboard = () => {
     ? `#${Math.floor(1000 / (territories + 1))}` 
     : "N/A";
 
+  // 3. Unit Formatting: Meters if < 500m
+  const formatDistanceValue = (meters) => {
+    if (meters < 500) {
+      return `${meters.toFixed(1)} m`;
+    }
+    return `${(meters / 1000).toFixed(2)} km`;
+  };
+
+  // Convert territories to meters for the rough estimate
+  const totalMetersEstimate = territories * 100; // Each hex ~100m at level 9, at level 11 it's much smaller
+
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
@@ -67,7 +78,7 @@ const Dashboard = () => {
         />
         <StatsCard 
             label="Distance" 
-            value={`${(territories * 0.1).toFixed(1)} km`} 
+            value={formatDistanceValue(territories * 25)} // Updated for level 11 (~25m)
             icon={Activity} 
         />
       </div>
@@ -108,6 +119,15 @@ const Dashboard = () => {
                 ⚔️ START RECLAIM
             </button>
         )}
+
+        {/* DEVELOPER DEBUG BUTTON */}
+        <button 
+          className="debug-step-btn" 
+          onClick={simulateStep}
+          title="Nudge GPS coordinates by ~10m"
+        >
+          🛠️ SIMULATE STEP
+        </button>
       </div>
 
       {showMissionAlert && (
@@ -251,6 +271,24 @@ const Dashboard = () => {
             box-shadow: 0 0 20px var(--neon-blue);
             animation: pulse-reclaim 1.5s infinite;
             z-index: 9999;
+        }
+
+        .debug-step-btn {
+            margin-top: 10px;
+            width: 100%;
+            background: rgba(0, 255, 234, 0.1);
+            border: 1px dashed var(--neon-blue);
+            color: var(--neon-blue);
+            padding: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .debug-step-btn:hover {
+            opacity: 1;
+            background: rgba(0, 255, 234, 0.2);
         }
 
         @keyframes pulse-reclaim {
