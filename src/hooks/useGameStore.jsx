@@ -46,6 +46,10 @@ export const GameProvider = ({ children }) => {
   const [reclaimedPathSegments, setReclaimedPathSegments] = useState([]); 
   const [showMissionAlert, setShowMissionAlert] = useState(false);
   const [isCameraLocked, setCameraLocked] = useState(true);
+  
+  // Mission Logic States
+  const [simulationSubtitle, setSimulationSubtitle] = useState("");
+  const [simulationProgress, setSimulationProgress] = useState(0); // 0-100
 
   // Mock Rival Data
   const Rival_User = {
@@ -385,6 +389,8 @@ export const GameProvider = ({ children }) => {
       setShowMissionAlert(false);
       setIsSimulating(true);
       setShowReclaimButton(false);
+      setSimulationSubtitle("");
+      setSimulationProgress(0);
       addAlert("⚠️ INVASION TEST STARTING...");
   };
 
@@ -425,7 +431,9 @@ export const GameProvider = ({ children }) => {
         contestedTiles, ghostPath, setGhostPath, reclaimedPathSegments, setReclaimedPathSegments, 
         showMissionAlert, setShowMissionAlert, setShowReclaimButton, Rival_User,
         simulateStep, H3_RESOLUTION,
-        isCameraLocked, setCameraLocked
+        isCameraLocked, setCameraLocked,
+        simulationSubtitle, setSimulationSubtitle,
+        simulationProgress, setSimulationProgress
     }}>
       {children}
     </GameContext.Provider>

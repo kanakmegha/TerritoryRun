@@ -9,7 +9,8 @@ const Dashboard = () => {
     startInvasionSimulation, showReclaimButton,
     showMissionAlert, setShowMissionAlert, startContinuousRun,
     currentRun, addAlert, simulateStep,
-    isCameraLocked, setCameraLocked
+    isCameraLocked, setCameraLocked,
+    simulationSubtitle, simulationProgress
   } = useGameStore();
   
   // 1. Safety Guard: Prevent crash if user stats haven't loaded yet
@@ -137,6 +138,15 @@ const Dashboard = () => {
           🛠️ SIMULATE STEP
         </button>
       </div>
+
+      {isSimulating && simulationSubtitle && (
+          <div className="mission-subtitle-overlay">
+              <div className="subtitle-content">
+                  <div className="subtitle-pulse"></div>
+                  <p>{simulationSubtitle}</p>
+              </div>
+          </div>
+      )}
 
       {showMissionAlert && (
           <div className="mission-alert-overlay">
@@ -406,6 +416,57 @@ const Dashboard = () => {
           .mobile-fab-container {
             display: block;
           }
+        }
+
+        .mission-subtitle-overlay {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid var(--neon-pink);
+            border-radius: 12px;
+            padding: 15px 25px;
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);
+            z-index: 10001;
+            pointer-events: auto;
+            animation: slide-up 0.5s ease-out;
+        }
+
+        .subtitle-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .subtitle-content p {
+            margin: 0;
+            color: var(--neon-pink);
+            font-size: 1rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .subtitle-pulse {
+            width: 12px;
+            height: 12px;
+            background: var(--neon-pink);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--neon-pink);
+            animation: pulse-pink 1s infinite alternate;
+        }
+
+        @keyframes slide-up {
+            from { transform: translate(-50%, 100px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        @keyframes pulse-pink {
+            from { transform: scale(1); filter: brightness(1); }
+            to { transform: scale(1.3); filter: brightness(1.5); }
         }
       `}</style>
     </div>
