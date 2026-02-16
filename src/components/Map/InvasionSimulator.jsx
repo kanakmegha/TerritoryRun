@@ -230,7 +230,6 @@ const InvasionSimulator = () => {
             `}</style>
         </>
     );
-    );
 };
 
 export default InvasionSimulator;
