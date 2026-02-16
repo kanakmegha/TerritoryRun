@@ -19,8 +19,16 @@ export const GameProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [claimedCells, setClaimedCells] = useState({});
   const [alerts, setAlerts] = useState([]);
-  const [currentRun, setCurrentRun] = useState({ isActive: false, path: [] });
-  const [tileDistanceMap, setTileDistanceMap] = useState({}); // { hexIndex: metersWithinTile }
+  // Hydrate currentRun from localStorage on init
+  const [currentRun, setCurrentRun] = useState(() => {
+    const saved = localStorage.getItem('currentRun');
+    return saved ? JSON.parse(saved) : { isActive: false, path: [], distance: 0 };
+  });
+  
+  const [tileDistanceMap, setTileDistanceMap] = useState(() => {
+    const saved = localStorage.getItem('tileDistanceMap');
+    return saved ? JSON.parse(saved) : {};
+  }); // { hexIndex: metersWithinTile }
   const [lastPosition, setLastPosition] = useState(null);
   const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle', 'requesting', 'locked', 'error'
   const [gpsError, setGpsError] = useState(null);
@@ -50,12 +58,58 @@ export const GameProvider = ({ children }) => {
         startGpsTracking();
     }
     
+    // Visibility Change Handler for Wake Lock
+    const handleVisibilityChange = async () => {
+        if (document.visibilityState === 'visible' && currentRun.isActive) {
+            requestWakeLock();
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
     return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         if (window.gpsWatcherId) {
             navigator.geolocation.clearWatch(window.gpsWatcherId);
         }
+        releaseWakeLock();
     };
-  }, [token]);
+  }, [token, currentRun.isActive]);
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('currentRun', JSON.stringify(currentRun));
+    if (currentRun.isActive) {
+        requestWakeLock();
+    } else {
+        releaseWakeLock();
+    }
+  }, [currentRun]);
+
+  useEffect(() => {
+    localStorage.setItem('tileDistanceMap', JSON.stringify(tileDistanceMap));
+  }, [tileDistanceMap]);
+
+  // Wake Lock Helpers
+  const wakeLockRef = React.useRef(null);
+  
+  const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && !wakeLockRef.current) {
+          try {
+              wakeLockRef.current = await navigator.wakeLock.request('screen');
+              console.log('Wake Lock is active');
+          } catch (err) {
+              console.error(`${err.name}, ${err.message}`);
+          }
+      }
+  };
+
+  const releaseWakeLock = async () => {
+      if (wakeLockRef.current) {
+          await wakeLockRef.current.release();
+          wakeLockRef.current = null;
+          console.log('Wake Lock released');
+      }
+  };
 
   const startGpsTracking = () => {
     if (!navigator.geolocation) {
@@ -171,11 +225,17 @@ export const GameProvider = ({ children }) => {
   const startContinuousRun = () => {
       setCurrentRun({ isActive: true, path: [], distance: 0 });
       setTileDistanceMap({});
+      localStorage.removeItem('currentRun');
+      localStorage.removeItem('tileDistanceMap');
+      requestWakeLock();
       addAlert("🏃 Run started! Territory acquisition active.");
   };
 
   const stopContinuousRun = () => {
       setCurrentRun(prev => ({ ...prev, isActive: false }));
+      localStorage.removeItem('currentRun');
+      localStorage.removeItem('tileDistanceMap');
+      releaseWakeLock();
       addAlert("🏁 Run stopped.");
   };
 
