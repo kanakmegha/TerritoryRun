@@ -8,7 +8,8 @@ const Dashboard = () => {
     user, alerts, logout, isSimulating,
     startInvasionSimulation, showReclaimButton,
     showMissionAlert, setShowMissionAlert, startContinuousRun,
-    currentRun, addAlert, simulateStep
+    currentRun, addAlert, simulateStep,
+    isCameraLocked, setCameraLocked
   } = useGameStore();
   
   // 1. Safety Guard: Prevent crash if user stats haven't loaded yet
@@ -57,6 +58,13 @@ const Dashboard = () => {
       <header className="dashboard-header">
         <h1 className="cyber-glitch" data-text="TERRITORY RUN">TERRITORY RUN</h1>
         <div className="user-profile">
+            <button 
+              className={`camera-toggle ${isCameraLocked ? 'locked' : ''}`}
+              onClick={() => setCameraLocked(!isCameraLocked)}
+              title={isCameraLocked ? "Unlock Camera" : "Lock Camera to Player"}
+            >
+              {isCameraLocked ? "🔒" : "🔓"}
+            </button>
             <div className="avatar" style={{ background: user.color || 'var(--neon-blue)' }}></div>
             <div className="user-info">
                 <span>{user.name || user.username || "Agent"}</span>
@@ -271,6 +279,24 @@ const Dashboard = () => {
             box-shadow: 0 0 20px var(--neon-blue);
             animation: pulse-reclaim 1.5s infinite;
             z-index: 9999;
+        }
+
+        .camera-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 5px;
+            filter: drop-shadow(0 0 5px var(--neon-blue));
+            transition: transform 0.2s;
+        }
+
+        .camera-toggle.locked {
+            filter: drop-shadow(0 0 8px var(--neon-blue));
+        }
+
+        .camera-toggle:hover {
+            transform: scale(1.1);
         }
 
         .debug-step-btn {

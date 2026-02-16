@@ -15,7 +15,7 @@ const API_URL = window.location.origin;
 axios.defaults.baseURL = API_URL;
 
 // DEVELOPER TESTING MODE CONSTANTS
-const H3_RESOLUTION = 11; // Level 11 = ~25m hexes (Perfect for backyard testing)
+const H3_RESOLUTION = 12; // Level 12 = Street-level detail
 const CLAIM_THRESHOLD = 1; // 1 meter = Instant claim for testing
 
 export const GameProvider = ({ children }) => {
@@ -45,6 +45,7 @@ export const GameProvider = ({ children }) => {
   const [ghostPath, setGhostPath] = useState([]); // Attacker's route for visualization
   const [reclaimedPathSegments, setReclaimedPathSegments] = useState([]); 
   const [showMissionAlert, setShowMissionAlert] = useState(false);
+  const [isCameraLocked, setCameraLocked] = useState(true);
 
   // Mock Rival Data
   const Rival_User = {
@@ -423,7 +424,8 @@ export const GameProvider = ({ children }) => {
         startInvasionSimulation, lostTiles, showReclaimButton, centerOnLostTiles,
         contestedTiles, ghostPath, setGhostPath, reclaimedPathSegments, setReclaimedPathSegments, 
         showMissionAlert, setShowMissionAlert, setShowReclaimButton, Rival_User,
-        simulateStep, H3_RESOLUTION
+        simulateStep, H3_RESOLUTION,
+        isCameraLocked, setCameraLocked
     }}>
       {children}
     </GameContext.Provider>

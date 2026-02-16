@@ -18,19 +18,38 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 const PlayerMarker = () => {
     const map = useMap();
-    const { lastPosition, gpsStatus } = useGameStore();
+    const { lastPosition, gpsStatus, isCameraLocked } = useGameStore();
     const hasCentered = useRef(false);
     const markerRef = useRef(null);
+    const [animatedPos, setAnimatedPos] = useState(null);
 
-    // Auto-center on first valid position
+    // Initial positioning
     useEffect(() => {
         if (lastPosition && !hasCentered.current) {
-            map.flyTo([lastPosition.lat, lastPosition.lng], 16);
+            map.flyTo([lastPosition.lat, lastPosition.lng], 18, { animate: true, duration: 1.5 });
+            setAnimatedPos([lastPosition.lat, lastPosition.lng]);
             hasCentered.current = true;
         }
     }, [lastPosition, map]);
 
-    if (gpsStatus !== 'locked' || !lastPosition) return null;
+    // Smooth movement & Auto-follow
+    useEffect(() => {
+        if (!lastPosition) return;
+        
+        const newPos = [lastPosition.lat, lastPosition.lng];
+        
+        // Handle Auto-follow
+        if (isCameraLocked) {
+            map.flyTo(newPos, 18, { animate: true, duration: 1.5 });
+        }
+
+        // Marker Animation Logic (Simple sliding)
+        // We set the animated position. CSS transition takes care of the visual smoothness if we use a divIcon
+        setAnimatedPos(newPos);
+
+    }, [lastPosition, map, isCameraLocked]);
+
+    if (gpsStatus !== 'locked' || !animatedPos) return null;
     
     // Removed: Click-to-teleport functionality (real GPS only)
 
@@ -39,7 +58,7 @@ const PlayerMarker = () => {
     return (
         <>
             <Marker 
-                position={[lastPosition.lat, lastPosition.lng]}
+                position={animatedPos}
                 ref={markerRef}
                 icon={L.divIcon({
                     className: 'gps-marker',
