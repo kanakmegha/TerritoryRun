@@ -1,11 +1,16 @@
 import { createLayerComponent } from '@react-leaflet/core';
 import L from 'leaflet';
+window.L = L; // Fix for plugins that expect global L
 import 'leaflet.gridlayer.googlemutant';
 
 const createGoogleLayer = (props, context) => {
     if (!L.gridLayer.googleMutant) {
         console.error("L.gridLayer.googleMutant is not defined. Ensure leaflet.gridlayer.googlemutant is loaded.");
-        // Fallback to a standard grid layer or throw
+        return null;
+    }
+
+    if (typeof google === 'undefined' || !google.maps) {
+        console.error("Google Maps API not loaded. Check script in index.html and API key.");
         return null;
     }
     const instance = L.gridLayer.googleMutant({

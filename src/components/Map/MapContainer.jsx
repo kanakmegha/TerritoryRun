@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { MapContainer, LayersControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import PlayerMarker from './PlayerMarker';
@@ -8,10 +9,24 @@ import BreadcrumbTrail from './BreadcrumbTrail';
 import GoogleMapsLayer from './GoogleMapsLayer';
 
 const MapView = () => {
+  const [googleReady, setGoogleReady] = useState(false);
   // Default position: San Francisco (placeholder)
   const defaultPosition = [37.7749, -122.4194];
 
-  return (
+  useEffect(() => {
+    const checkGoogle = () => {
+      if (window.google && window.google.maps) {
+        setGoogleReady(true);
+      } else {
+        setTimeout(checkGoogle, 100);
+      }
+    };
+    checkGoogle();
+  }, []);
+
+  if (!googleReady) {
+    return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505', color: 'var(--neon-blue)' }}>INITIALIZING SATELLITE UPLINK...</div>;
+  }
     <MapContainer 
       center={defaultPosition} 
       zoom={15} 
