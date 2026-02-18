@@ -1,10 +1,11 @@
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, LayersControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import PlayerMarker from './PlayerMarker';
 import HexGrid from './HexGrid';
 import InvasionSimulator from './InvasionSimulator';
 import ReclaimHandler from './ReclaimHandler';
 import BreadcrumbTrail from './BreadcrumbTrail';
+import GoogleMapsLayer from './GoogleMapsLayer';
 
 const MapView = () => {
   // Default position: San Francisco (placeholder)
@@ -14,17 +15,18 @@ const MapView = () => {
     <MapContainer 
       center={defaultPosition} 
       zoom={15} 
-      maxZoom={22}
+      maxZoom={21}
       style={{ height: '100%', width: '100%', background: '#050505' }}
       zoomControl={true}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png"
-        maxZoom={22}
-        maxNativeZoom={20}
-        className="map-tiles"
-      />
+      <LayersControl position="topright">
+        <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
+          <GoogleMapsLayer type="hybrid" />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Google Roadmap">
+          <GoogleMapsLayer type="roadmap" />
+        </LayersControl.BaseLayer>
+      </LayersControl>
       {/* Dark mode filter for tiles */}
       <style>{`
         .map-tiles {
