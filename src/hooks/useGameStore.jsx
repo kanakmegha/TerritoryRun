@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { latLngToCell, cellToLatLng } from 'h3-js';
 
@@ -120,7 +120,7 @@ export const GameProvider = ({ children }) => {
   }, [tileDistanceMap]);
 
   // Wake Lock Helpers
-  const wakeLockRef = React.useRef(null);
+  const wakeLockRef = useRef(null);
   
   const requestWakeLock = async () => {
       if ('wakeLock' in navigator && !wakeLockRef.current) {
