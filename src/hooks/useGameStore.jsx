@@ -15,8 +15,8 @@ const API_URL = window.location.origin;
 axios.defaults.baseURL = API_URL;
 
 // DEVELOPER TESTING MODE CONSTANTS
-const H3_RESOLUTION = 12; // Level 12 = Street-level detail
-const CLAIM_THRESHOLD = 1; // 1 meter = Instant claim for testing
+const H3_RESOLUTION = 15; // Level 15 = Micro-precision (~1m hexes) for indoor testing
+const CLAIM_THRESHOLD = 0.5; // 0.5 meters = Instant claim for indoor testing
 
 export const GameProvider = ({ children }) => {
   const [user, setUser] = useState(null);

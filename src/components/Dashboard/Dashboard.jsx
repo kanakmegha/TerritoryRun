@@ -87,7 +87,7 @@ const Dashboard = () => {
         />
         <StatsCard 
             label="Distance" 
-            value={formatDistanceValue(territories * 25)} // Updated for level 11 (~25m)
+            value={formatDistanceValue(territories * 1)} // Updated for level 15 (~1m)
             icon={Activity} 
         />
       </div>
