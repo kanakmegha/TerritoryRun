@@ -11,6 +11,7 @@ import { useGameStore } from '../../hooks/useGameStore';
 const MapView = () => {
     const [isMounted, setIsMounted] = useState(false);
     const [googleReady, setGoogleReady] = useState(false);
+    const [googleFailed, setGoogleFailed] = useState(false);
     const defaultPosition = [37.7749, -122.4194];
 
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -24,10 +25,10 @@ const MapView = () => {
             return;
         }
 
-        // Pro: 5-second safety timeout for fallback
+        // 5-second safety timeout for Google Maps load
         const timeout = setTimeout(() => {
             if (!window.google || !window.google.maps) {
-                console.warn("Google Maps failed to load within 5s. Falling back to OSM.");
+                console.warn("🚨 Google Maps failed to load (timeout). Switching to OSM.");
                 setGoogleFailed(true);
                 setGoogleReady(true);
             }
@@ -35,10 +36,11 @@ const MapView = () => {
 
         const checkGoogle = () => {
             if (window.google && window.google.maps) {
+                console.log("✅ Google Maps API connected.");
                 setGoogleReady(true);
                 clearTimeout(timeout);
             } else {
-                setTimeout(checkGoogle, 100);
+                setTimeout(checkGoogle, 200);
             }
         };
         checkGoogle();
@@ -47,31 +49,49 @@ const MapView = () => {
     }, [apiKey]);
 
     const { lastPosition } = useGameStore();
-    const mapCenter = lastPosition ? [lastPosition.lat, lastPosition.lng] : defaultPosition;
+    
+    // Robust coordinate validation to prevent Leaflet crashes
+    const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
+    const mapCenter = isValidPos(lastPosition) ? [lastPosition.lat, lastPosition.lng] : defaultPosition;
 
     if (!isMounted) return null;
 
     return (
         <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
+            <style>{`
+                .leaflet-container {
+                    background: #050505 !important;
+                    height: 100vh !important;
+                    width: 100% !important;
+                }
+                .map-tiles {
+                    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+                }
+                .sat-overlay {
+                    position: absolute;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    z-index: 9999;
+                    display: flex; 
+                    flex-direction: column;
+                    align-items: center; 
+                    justify-content: center; 
+                    background: rgba(5, 5, 5, 0.9); 
+                    color: #00f3ff;
+                    font-family: monospace;
+                    pointer-events: none;
+                }
+            `}</style>
+
             {!googleReady && apiKey && (
-                <div style={{ 
-                    position: 'absolute',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    zIndex: 1000,
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    background: 'rgba(5, 5, 5, 0.8)', 
-                    color: 'var(--neon-blue)',
-                    fontFamily: 'monospace',
-                    pointerEvents: 'none'
-                }}>
-                    ESTABLISHING SATELLITE LINK...
+                <div className="sat-overlay">
+                    <div style={{ marginBottom: '10px', fontSize: '1.2rem', letterSpacing: '2px' }}>ESTABLISHING SATELLITE LINK...</div>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>VERIFYING GEO-ENCRYPTION...</div>
                 </div>
             )}
+            
             <MapContainer 
                 center={mapCenter} 
-                zoom={lastPosition ? 18 : 15} 
+                zoom={isValidPos(lastPosition) ? 18 : 15} 
                 maxZoom={21}
                 style={{ height: '100vh', width: '100%', background: '#050505' }}
                 zoomControl={true}
@@ -106,16 +126,6 @@ const MapView = () => {
                 <InvasionSimulator />
                 <ReclaimHandler />
             </MapContainer>
-
-            {/* Global Map Overrides */}
-            <style jsx="true">{`
-                .leaflet-container {
-                    background: #050505 !important;
-                }
-                .map-tiles {
-                    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-                }
-            `}</style>
         </div>
     );
 };
