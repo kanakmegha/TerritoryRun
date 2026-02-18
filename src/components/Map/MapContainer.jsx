@@ -38,9 +38,10 @@ const MapView = () => {
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center', 
-                    background: '#050505', 
+                    background: 'rgba(5, 5, 5, 0.8)', 
                     color: 'var(--neon-blue)',
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
+                    pointerEvents: 'none'
                 }}>
                     ESTABLISHING SATELLITE LINK...
                 </div>
