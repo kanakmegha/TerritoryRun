@@ -15,20 +15,35 @@ const MapView = () => {
 
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+    const [googleFailed, setGoogleFailed] = useState(false);
+
     useEffect(() => {
         setIsMounted(true);
         if (!apiKey) {
             setGoogleReady(true);
             return;
         }
+
+        // Pro: 5-second safety timeout for fallback
+        const timeout = setTimeout(() => {
+            if (!window.google || !window.google.maps) {
+                console.warn("Google Maps failed to load within 5s. Falling back to OSM.");
+                setGoogleFailed(true);
+                setGoogleReady(true);
+            }
+        }, 5000);
+
         const checkGoogle = () => {
             if (window.google && window.google.maps) {
                 setGoogleReady(true);
+                clearTimeout(timeout);
             } else {
                 setTimeout(checkGoogle, 100);
             }
         };
         checkGoogle();
+
+        return () => clearTimeout(timeout);
     }, [apiKey]);
 
     const { lastPosition } = useGameStore();
@@ -61,7 +76,7 @@ const MapView = () => {
                 style={{ height: '100vh', width: '100%', background: '#050505' }}
                 zoomControl={true}
             >
-                {apiKey ? (
+                {(apiKey && !googleFailed) ? (
                     <LayersControl position="topright">
                         <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
                             <GoogleLayer 
