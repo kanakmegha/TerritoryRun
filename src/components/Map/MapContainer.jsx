@@ -20,12 +20,20 @@ const MapView = () => {
 
     useEffect(() => {
         setIsMounted(true);
+        console.log("📍 Map initialization. API Key present:", !!apiKey);
+        
+        // Safety: Global hook for Google Maps Auth Failure (Referrer/Key errors)
+        window.gm_authFailure = () => {
+            console.error("🚨 Google Maps Authentication Failed. Falling back to OSM.");
+            setGoogleFailed(true);
+            setGoogleReady(true);
+        };
+
         if (!apiKey) {
             setGoogleReady(true);
             return;
         }
 
-        // 5-second safety timeout for Google Maps load
         const timeout = setTimeout(() => {
             if (!window.google || !window.google.maps) {
                 console.warn("🚨 Google Maps failed to load (timeout). Switching to OSM.");
@@ -36,7 +44,6 @@ const MapView = () => {
 
         const checkGoogle = () => {
             if (window.google && window.google.maps) {
-                console.log("✅ Google Maps API connected.");
                 setGoogleReady(true);
                 clearTimeout(timeout);
             } else {
@@ -45,7 +52,10 @@ const MapView = () => {
         };
         checkGoogle();
 
-        return () => clearTimeout(timeout);
+        return () => {
+            clearTimeout(timeout);
+            delete window.gm_authFailure;
+        };
     }, [apiKey]);
 
     const { lastPosition } = useGameStore();
@@ -59,10 +69,12 @@ const MapView = () => {
     return (
         <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
             <style>{`
+            <style>{`
                 .leaflet-container {
-                    background: #050505 !important;
+                    background: #080808 !important; /* Slightly lighter so we can see it's there */
                     height: 100vh !important;
                     width: 100% !important;
+                    z-index: 1 !important; /* Above body, below dashboard */
                 }
                 .map-tiles {
                     filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
@@ -85,7 +97,25 @@ const MapView = () => {
             {!googleReady && apiKey && (
                 <div className="sat-overlay">
                     <div style={{ marginBottom: '10px', fontSize: '1.2rem', letterSpacing: '2px' }}>ESTABLISHING SATELLITE LINK...</div>
-                    <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>VERIFYING GEO-ENCRYPTION...</div>
+                    <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>BYPASSING ENCRYPTION...</div>
+                </div>
+            )}
+
+            {googleFailed && apiKey && (
+                <div style={{ 
+                    position: 'absolute', 
+                    top: '80px', left: '50%', transform: 'translateX(-50%)',
+                    zIndex: 10000, 
+                    background: 'rgba(255, 0, 0, 0.2)', 
+                    border: '1px solid #ff0055',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    color: '#ff0055',
+                    fontSize: '0.7rem',
+                    pointerEvents: 'none',
+                    textAlign: 'center'
+                }}>
+                    GOOGLE LINK OFFLINE: INITIALIZING OSM FALLBACK...
                 </div>
             )}
             
