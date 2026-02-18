@@ -43,9 +43,9 @@ const Dashboard = () => {
     ? `#${Math.floor(1000 / (territories + 1))}` 
     : "N/A";
 
-  // 3. Unit Formatting: CMS if < 1m
+  // 3. Unit Formatting: CMS if < 50m for indoor testing
   const formatDistanceValue = (meters) => {
-    if (meters < 1) {
+    if (meters < 50) {
       return `${(meters * 100).toFixed(0)} cm`;
     }
     if (meters < 500) {
