@@ -28,24 +28,23 @@ const MapView = () => {
         checkGoogle();
     }, [apiKey]);
 
-    if (!googleReady) {
-        return (
-            <div style={{ 
-                height: '100%', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                background: '#050505', 
-                color: 'var(--neon-blue)',
-                fontFamily: 'monospace'
-            }}>
-                INITIALIZING SATELLITE UPLINK...
-            </div>
-        );
-    }
-
     return (
-        <div style={{ height: '100%', width: '100%', position: 'relative' }}>
+        <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
+            {!googleReady && apiKey && (
+                <div style={{ 
+                    position: 'absolute',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    zIndex: 1000,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    background: '#050505', 
+                    color: 'var(--neon-blue)',
+                    fontFamily: 'monospace'
+                }}>
+                    ESTABLISHING SATELLITE LINK...
+                </div>
+            )}
             <MapContainer 
                 center={defaultPosition} 
                 zoom={15} 

@@ -82,10 +82,14 @@ export const GameProvider = ({ children }) => {
 
   // 2. UPDATED AUTH HEADER & GPS INIT
   useEffect(() => {
+    // Immediate GPS Trigger for permissions
+    startGpsTracking();
+  }, []);
+
+  useEffect(() => {
     if (token) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         refreshMap();
-        startGpsTracking();
     }
     
     // Visibility Change Handler for Wake Lock
@@ -142,6 +146,7 @@ export const GameProvider = ({ children }) => {
   };
 
   const startGpsTracking = () => {
+    console.log('🛰️ Checking Permissions and initializing GPS...');
     if (!navigator.geolocation) {
         setGpsStatus('error');
         setGpsError('Geolocation is not supported by your browser.');
