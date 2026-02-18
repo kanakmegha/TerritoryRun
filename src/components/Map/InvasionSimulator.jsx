@@ -145,7 +145,14 @@ const InvasionSimulator = () => {
         return () => clearInterval(interval);
     }, [isSimulating, targetTiles, currentTargetIndex, map]);
 
-    if (!isSimulating || !currentInvasionPos) return null;
+    // Final defensive check before rendering Leaflet layers
+    const isValidPos = currentInvasionPos && 
+                     typeof currentInvasionPos.lat === 'number' && 
+                     typeof currentInvasionPos.lng === 'number' &&
+                     !isNaN(currentInvasionPos.lat) && 
+                     !isNaN(currentInvasionPos.lng);
+
+    if (!isSimulating || !isValidPos) return null;
 
     const attackerIcon = L.divIcon({
         className: 'attacker-marker',
@@ -169,7 +176,18 @@ const InvasionSimulator = () => {
             {/* Real-time Ghost Path */}
             {pathHistory.length > 1 && (
                 <Polyline 
-                    positions={pathHistory.map(p => [p.lat, p.lng])} 
+                    positions={pathHistory.map(p => {
+                        if (Array.isArray(p) && p.length === 2) {
+                            if (typeof p[0] === 'number' && typeof p[1] === 'number' && !isNaN(p[0]) && !isNaN(p[1])) {
+                                return p;
+                            }
+                        } else if (typeof p === 'object' && p !== null && typeof p.lat === 'number' && typeof p.lng === 'number') {
+                            if (!isNaN(p.lat) && !isNaN(p.lng)) {
+                                return [p.lat, p.lng];
+                            }
+                        }
+                        return null;
+                    }).filter(p => p !== null)} 
                     pathOptions={{ 
                         color: 'red', 
                         weight: 4, 

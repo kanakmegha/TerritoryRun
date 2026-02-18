@@ -9,28 +9,41 @@ const HexGrid = () => {
     
     useEffect(() => {
         const hexagons = Object.entries(claimedCells).map(([index, data]) => {
-            const boundary = cellToBoundary(index);
-            // h3 returns [lat, lng], Leaflet expects [lat, lng]
-            return {
-                index,
-                positions: boundary,
-                color: data.color,
-                glitch: data.glitch || false
-            };
-        });
+            try {
+                if (!index || index === 'undefined') return null;
+                const boundary = cellToBoundary(index);
+                if (!boundary || boundary.length === 0) return null;
+                return {
+                    index,
+                    positions: boundary,
+                    color: data.color,
+                    glitch: data.glitch || false
+                };
+            } catch (e) {
+                console.warn("Invalid H3 index in claimedCells:", index);
+                return null;
+            }
+        }).filter(h => h !== null);
         
         // Add contested tiles (red)
         const contestedHexagons = Object.entries(contestedTiles).map(([index, data]) => {
-            const boundary = cellToBoundary(index);
-            return {
-                index,
-                positions: boundary,
-                color: '#ff0000', // Red for contested
-                glitch: data.glitch || false,
-                contested: true,
-                key: `${index}-${data.originalOwner || 'rival'}`
-            };
-        });
+            try {
+                if (!index || index === 'undefined') return null;
+                const boundary = cellToBoundary(index);
+                if (!boundary || boundary.length === 0) return null;
+                return {
+                    index,
+                    positions: boundary,
+                    color: '#ff0000', // Red for contested
+                    glitch: data.glitch || false,
+                    contested: true,
+                    key: `${index}-${data.originalOwner || 'rival'}`
+                };
+            } catch (e) {
+                console.warn("Invalid H3 index in contestedTiles:", index);
+                return null;
+            }
+        }).filter(h => h !== null);
         
         setHexagons([...hexagons, ...contestedHexagons]);
     }, [claimedCells, contestedTiles]);

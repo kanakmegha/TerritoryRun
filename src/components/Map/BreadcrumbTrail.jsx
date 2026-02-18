@@ -9,7 +9,20 @@ const BreadcrumbTrail = () => {
     }
 
     // Convert path to position format expected by Leaflet
-    const positions = currentRun.path.map(p => [p.lat, p.lng]);
+    // Store uses [lat, lng] arrays, but sometimes objects {lat, lng} might be present.
+    // Ensure each point is a valid coordinate pair [lat, lng].
+    const positions = currentRun.path.map(p => {
+        if (Array.isArray(p) && p.length === 2) {
+            if (typeof p[0] === 'number' && typeof p[1] === 'number' && !isNaN(p[0]) && !isNaN(p[1])) {
+                return p;
+            }
+        } else if (typeof p === 'object' && p !== null && typeof p.lat === 'number' && typeof p.lng === 'number') {
+            if (!isNaN(p.lat) && !isNaN(p.lng)) {
+                return [p.lat, p.lng];
+            }
+        }
+        return null;
+    }).filter(p => p !== null);
 
     return (
         <>

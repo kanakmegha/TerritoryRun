@@ -25,13 +25,34 @@ export const GameProvider = ({ children }) => {
   const [alerts, setAlerts] = useState([]);
   // Hydrate currentRun from localStorage on init
   const [currentRun, setCurrentRun] = useState(() => {
-    const saved = localStorage.getItem('currentRun');
-    return saved ? JSON.parse(saved) : { isActive: false, path: [], distance: 0 };
+    try {
+        const saved = localStorage.getItem('currentRun');
+        if (saved && saved !== 'undefined') {
+            const parsed = JSON.parse(saved);
+            // Extra safety: ensure required fields exist
+            return {
+                isActive: !!parsed.isActive,
+                path: Array.isArray(parsed.path) ? parsed.path : [],
+                distance: typeof parsed.distance === 'number' ? parsed.distance : 0,
+                pace: typeof parsed.pace === 'number' ? parsed.pace : 0
+            };
+        }
+    } catch (e) {
+        console.error("Failed to parse currentRun from localStorage", e);
+    }
+    return { isActive: false, path: [], distance: 0, pace: 0 };
   });
   
   const [tileDistanceMap, setTileDistanceMap] = useState(() => {
-    const saved = localStorage.getItem('tileDistanceMap');
-    return saved ? JSON.parse(saved) : {};
+    try {
+        const saved = localStorage.getItem('tileDistanceMap');
+        if (saved && saved !== 'undefined') {
+            return JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error("Failed to parse tileDistanceMap from localStorage", e);
+    }
+    return {};
   }); // { hexIndex: metersWithinTile }
   const [lastPosition, setLastPosition] = useState(null);
   const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle', 'requesting', 'locked', 'error'

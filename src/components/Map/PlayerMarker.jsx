@@ -34,13 +34,13 @@ const PlayerMarker = () => {
 
     // Smooth movement & Auto-follow
     useEffect(() => {
-        if (!lastPosition) return;
+        if (!lastPosition || typeof lastPosition.lat !== 'number' || typeof lastPosition.lng !== 'number' || isNaN(lastPosition.lat) || isNaN(lastPosition.lng)) return;
         
         const newPos = [lastPosition.lat, lastPosition.lng];
         
         // Handle Auto-follow
         if (isCameraLocked) {
-            map.flyTo(newPos, 18, { animate: true, duration: 1.5 });
+            map.flyTo(newPos, map.getZoom() < 18 ? 18 : map.getZoom(), { animate: true, duration: 1.5 });
         }
 
         // Marker Animation Logic (Simple sliding)
