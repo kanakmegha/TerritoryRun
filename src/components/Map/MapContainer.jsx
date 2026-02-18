@@ -27,6 +27,7 @@ const MapView = () => {
   if (!googleReady) {
     return <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050505', color: 'var(--neon-blue)' }}>INITIALIZING SATELLITE UPLINK...</div>;
   }
+  return (
     <MapContainer 
       center={defaultPosition} 
       zoom={15} 
