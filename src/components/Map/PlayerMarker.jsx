@@ -32,21 +32,32 @@ const PlayerMarker = () => {
         }
     }, [lastPosition, map]);
 
-    // Smooth movement & Auto-follow
+    // Smooth movement & Auto-follow with Jitter Prevention
     useEffect(() => {
         if (!lastPosition || typeof lastPosition.lat !== 'number' || typeof lastPosition.lng !== 'number' || isNaN(lastPosition.lat) || isNaN(lastPosition.lng)) return;
         
         const newPos = [lastPosition.lat, lastPosition.lng];
         
-        // Handle Auto-follow
+        // Handle Auto-follow with Jitter Prevention for Zoom 19+
         if (isCameraLocked) {
-            map.flyTo(newPos, map.getZoom() < 18 ? 18 : map.getZoom(), { animate: true, duration: 1.5 });
+            const currentZoom = map.getZoom();
+            const currentCenter = map.getCenter();
+            
+            // Calculate distance between map center and new position
+            const distToCenter = map.distance(currentCenter, newPos);
+            
+            // At zoom 19+, don't jitter for small moves < 1.5m unless center is far
+            const moveThreshold = currentZoom >= 19 ? 1.5 : 0.5;
+            
+            if (distToCenter > moveThreshold) {
+                map.flyTo(newPos, currentZoom < 18 ? 18 : currentZoom, { 
+                    animate: true, 
+                    duration: currentZoom >= 19 ? 0.8 : 1.5 // Snappier at high zoom
+                });
+            }
         }
 
-        // Marker Animation Logic (Simple sliding)
-        // We set the animated position. CSS transition takes care of the visual smoothness if we use a divIcon
         setAnimatedPos(newPos);
-
     }, [lastPosition, map, isCameraLocked]);
 
     if (gpsStatus !== 'locked' || !animatedPos) return null;

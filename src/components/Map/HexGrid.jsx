@@ -6,8 +6,19 @@ import { useEffect, useState } from 'react';
 const HexGrid = () => {
     const { claimedCells, contestedTiles } = useGameStore();
     const [hexagons, setHexagons] = useState([]);
+    const [zoom, setZoom] = useState(13);
+    const map = useMap();
+
+    // Monitor zoom changes
+    useEffect(() => {
+        const handleZoom = () => setZoom(map.getZoom());
+        map.on('zoomend', handleZoom);
+        setZoom(map.getZoom());
+        return () => map.off('zoomend', handleZoom);
+    }, [map]);
     
     useEffect(() => {
+        // ... (rest of useEffect remains the same)
         const hexagons = Object.entries(claimedCells).map(([index, data]) => {
             try {
                 if (!index || index === 'undefined') return null;
@@ -48,6 +59,8 @@ const HexGrid = () => {
         setHexagons([...hexagons, ...contestedHexagons]);
     }, [claimedCells, contestedTiles]);
 
+    const dynamicWeight = zoom >= 19 ? 3 : Math.max(1, zoom - 15);
+
     return (
         <>
             {hexagons.map(hex => (
@@ -58,7 +71,7 @@ const HexGrid = () => {
                         color: hex.color, 
                         fillColor: hex.color, 
                         fillOpacity: hex.glitch ? 0.8 : (hex.contested ? 0.3 : 0.4),
-                        weight: hex.glitch ? 4 : 2,
+                        weight: hex.glitch ? 5 : dynamicWeight,
                         className: hex.glitch ? 'hex-glitch' : ''
                     }}
                 />
