@@ -9,14 +9,16 @@ import GoogleLayer from 'react-leaflet-google-layer';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const MapView = () => {
+    const [isMounted, setIsMounted] = useState(false);
     const [googleReady, setGoogleReady] = useState(false);
     const defaultPosition = [37.7749, -122.4194];
 
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
     useEffect(() => {
+        setIsMounted(true);
         if (!apiKey) {
-            setGoogleReady(true); // Skip loading if no API key
+            setGoogleReady(true);
             return;
         }
         const checkGoogle = () => {
@@ -31,6 +33,8 @@ const MapView = () => {
 
     const { lastPosition } = useGameStore();
     const mapCenter = lastPosition ? [lastPosition.lat, lastPosition.lng] : defaultPosition;
+
+    if (!isMounted) return null;
 
     return (
         <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
