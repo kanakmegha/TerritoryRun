@@ -6,7 +6,7 @@ import HexGrid from './HexGrid';
 import InvasionSimulator from './InvasionSimulator';
 import ReclaimHandler from './ReclaimHandler';
 import BreadcrumbTrail from './BreadcrumbTrail';
-import GoogleMapsLayer from './GoogleMapsLayer';
+import GoogleLayer from 'react-leaflet-google-layer';
 
 const MapView = () => {
     const [googleReady, setGoogleReady] = useState(false);
