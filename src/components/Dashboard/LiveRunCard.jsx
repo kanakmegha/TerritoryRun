@@ -61,6 +61,7 @@ const LiveRunCard = () => {
     }
 
     const formatDistance = (meters) => {
+        if (meters < 1) return `${(meters * 100).toFixed(0)} cm`;
         if (meters < 500) return `${meters.toFixed(1)} m`;
         return `${(meters / 1000).toFixed(2)} km`;
     };

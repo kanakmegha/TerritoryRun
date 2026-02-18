@@ -43,16 +43,17 @@ const Dashboard = () => {
     ? `#${Math.floor(1000 / (territories + 1))}` 
     : "N/A";
 
-  // 3. Unit Formatting: Meters if < 500m
+  // 3. Unit Formatting: CMS if < 1m
   const formatDistanceValue = (meters) => {
+    if (meters < 1) {
+      return `${(meters * 100).toFixed(0)} cm`;
+    }
     if (meters < 500) {
       return `${meters.toFixed(1)} m`;
     }
     return `${(meters / 1000).toFixed(2)} km`;
   };
 
-  // Convert territories to meters for the rough estimate
-  const totalMetersEstimate = territories * 100; // Each hex ~100m at level 9, at level 11 it's much smaller
 
   return (
     <div className="dashboard-container">
