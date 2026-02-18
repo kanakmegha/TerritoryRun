@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import { MapContainer, LayersControl } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
+import { MapContainer, LayersControl, TileLayer } from 'react-leaflet';
 import PlayerMarker from './PlayerMarker';
 import HexGrid from './HexGrid';
 import InvasionSimulator from './InvasionSimulator';
@@ -12,7 +10,13 @@ const MapView = () => {
     const [googleReady, setGoogleReady] = useState(false);
     const defaultPosition = [37.7749, -122.4194];
 
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
     useEffect(() => {
+        if (!apiKey) {
+            setGoogleReady(true); // Skip loading if no API key
+            return;
+        }
         const checkGoogle = () => {
             if (window.google && window.google.maps) {
                 setGoogleReady(true);
@@ -21,7 +25,7 @@ const MapView = () => {
             }
         };
         checkGoogle();
-    }, []);
+    }, [apiKey]);
 
     if (!googleReady) {
         return (
@@ -45,23 +49,31 @@ const MapView = () => {
                 center={defaultPosition} 
                 zoom={15} 
                 maxZoom={21}
-                style={{ height: '100%', width: '100%', background: '#050505' }}
+                style={{ height: '100vh', width: '100%', background: '#050505' }}
                 zoomControl={true}
             >
-                <LayersControl position="topright">
-                    <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
-                        <GoogleLayer 
-                            apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} 
-                            type="hybrid" 
-                        />
-                    </LayersControl.BaseLayer>
-                    <LayersControl.BaseLayer name="Google Roadmap">
-                        <GoogleLayer 
-                            apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} 
-                            type="roadmap" 
-                        />
-                    </LayersControl.BaseLayer>
-                </LayersControl>
+                {apiKey ? (
+                    <LayersControl position="topright">
+                        <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
+                            <GoogleLayer 
+                                apiKey={apiKey} 
+                                type="hybrid" 
+                            />
+                        </LayersControl.BaseLayer>
+                        <LayersControl.BaseLayer name="Google Roadmap">
+                            <GoogleLayer 
+                                apiKey={apiKey} 
+                                type="roadmap" 
+                            />
+                        </LayersControl.BaseLayer>
+                    </LayersControl>
+                ) : (
+                    <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        className="map-tiles"
+                    />
+                )}
 
                 {/* Overlays */}
                 <PlayerMarker />

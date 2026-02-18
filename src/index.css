@@ -5,7 +5,7 @@
   --bg-dark: #050505;
   --bg-panel: rgba(20, 20, 20, 0.9);
   --text-main: #e0e0e0;
-  
+
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -40,13 +40,32 @@ body {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-dark);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--neon-blue);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--neon-pink);
+}
+
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+/* Ensure dashboard overlay doesn't block the map visually */
+.dashboard-container,
+.dashboard-overlay {
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.dashboard-container>*,
+.dashboard-overlay>* {
+  pointer-events: auto;
 }
