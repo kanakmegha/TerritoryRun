@@ -16,7 +16,7 @@ const MapView = () => {
 
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-    const [googleFailed, setGoogleFailed] = useState(false);
+
 
     useEffect(() => {
         setIsMounted(true);
