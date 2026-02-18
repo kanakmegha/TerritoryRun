@@ -50,10 +50,16 @@ const MapView = () => {
             >
                 <LayersControl position="topright">
                     <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
-                        <GoogleMapsLayer type="hybrid" />
+                        <GoogleLayer 
+                            apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} 
+                            type="hybrid" 
+                        />
                     </LayersControl.BaseLayer>
                     <LayersControl.BaseLayer name="Google Roadmap">
-                        <GoogleMapsLayer type="roadmap" />
+                        <GoogleLayer 
+                            apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY} 
+                            type="roadmap" 
+                        />
                     </LayersControl.BaseLayer>
                 </LayersControl>
 
