@@ -32,15 +32,22 @@ const PlayerMarker = () => {
         }
     }, [lastPosition, map]);
 
-    // Smooth movement & Auto-follow
+    // Pro: Lazy Follow & Smooth Auto-centering
     useEffect(() => {
-        if (!lastPosition || typeof lastPosition.lat !== 'number' || typeof lastPosition.lng !== 'number' || isNaN(lastPosition.lat) || isNaN(lastPosition.lng)) return;
+        if (!lastPosition || isNaN(lastPosition.lat) || isNaN(lastPosition.lng)) return;
         
         const newPos = [lastPosition.lat, lastPosition.lng];
         
-        // Handle Auto-follow
+        // Handle Auto-follow with threshold (Lazy Follow)
         if (isCameraLocked) {
-            map.flyTo(newPos, map.getZoom() < 18 ? 18 : map.getZoom(), { animate: true, duration: 1.5 });
+            const currentCenter = map.getCenter();
+            const distanceMoved = map.distance(currentCenter, newPos);
+            
+            // Only re-center if we've moved > 10 meters to avoid jitter
+            if (distanceMoved > 10 || !hasCentered.current) {
+                map.panTo(newPos, { animate: true, duration: 1.2 });
+                hasCentered.current = true;
+            }
         }
 
         setAnimatedPos(newPos);
@@ -95,28 +102,32 @@ const PlayerMarker = () => {
                 position={animatedPos}
                 ref={markerRef}
                 icon={L.divIcon({
-                    className: 'gps-marker',
-                    html: '<div class="gps-dot"></div>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
+                    className: 'gps-marker-container',
+                    html: '<div class="player-dot"></div>',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
                 })}
             >
                 <Popup>Protocol Active: Tracking Runner</Popup>
             </Marker>
             
-            {/* CSS for glowing GPS marker */}
+            {/* CSS for glowing GPS marker with Smooth Glide */}
             <style>{`
-                .gps-marker {
+                .gps-marker-container {
                     background: transparent;
+                    pointer-events: none;
                 }
                 
-                .gps-dot {
+                .player-dot {
                     width: 20px;
                     height: 20px;
+                    margin: 10px; /* Center within 40x40 container */
                     background: #00ffea;
                     border-radius: 50%;
                     box-shadow: 0 0 15px #00ffea, 0 0 30px #00ffea;
                     animation: gps-pulse 2s ease-in-out infinite;
+                    /* Pro: Smooth Glide Transition */
+                    transition: transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1.0);
                 }
                 
                 @keyframes gps-pulse {

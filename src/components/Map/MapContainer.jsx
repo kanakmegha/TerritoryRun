@@ -6,6 +6,7 @@ import InvasionSimulator from './InvasionSimulator';
 import ReclaimHandler from './ReclaimHandler';
 import BreadcrumbTrail from './BreadcrumbTrail';
 import GoogleLayer from 'react-leaflet-google-layer';
+import { useGameStore } from '../../hooks/useGameStore';
 
 const MapView = () => {
     const [googleReady, setGoogleReady] = useState(false);
@@ -28,6 +29,9 @@ const MapView = () => {
         checkGoogle();
     }, [apiKey]);
 
+    const { lastPosition } = useGameStore();
+    const mapCenter = lastPosition ? [lastPosition.lat, lastPosition.lng] : defaultPosition;
+
     return (
         <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
             {!googleReady && apiKey && (
@@ -47,8 +51,8 @@ const MapView = () => {
                 </div>
             )}
             <MapContainer 
-                center={defaultPosition} 
-                zoom={15} 
+                center={mapCenter} 
+                zoom={lastPosition ? 18 : 15} 
                 maxZoom={21}
                 style={{ height: '100vh', width: '100%', background: '#050505' }}
                 zoomControl={true}

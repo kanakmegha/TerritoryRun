@@ -54,7 +54,22 @@ export const GameProvider = ({ children }) => {
     }
     return {};
   }); // { hexIndex: metersWithinTile }
-  const [lastPosition, setLastPosition] = useState(null);
+  const [lastPosition, setLastPosition] = useState(() => {
+    try {
+        const saved = localStorage.getItem('lastPosition');
+        if (saved) return JSON.parse(saved);
+    } catch (e) {
+        console.error("Failed to parse lastPosition from localStorage", e);
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (lastPosition) {
+        localStorage.setItem('lastPosition', JSON.stringify(lastPosition));
+    }
+  }, [lastPosition]);
+
   const [gpsStatus, setGpsStatus] = useState('idle'); // 'idle', 'requesting', 'locked', 'error'
   const [gpsError, setGpsError] = useState(null);
 
@@ -157,8 +172,8 @@ export const GameProvider = ({ children }) => {
     
     const options = {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 5000, // Pro: Lower timeout for faster updates
+        maximumAge: 0   // Pro: No cached positions
     };
 
     const success = (position) => {
