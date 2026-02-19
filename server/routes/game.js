@@ -61,29 +61,30 @@ router.get('/map', async (req, res) => {
         let query = {};
 
         if (bbox) {
-            const [minLng, minLat, maxLng, maxLat] = bbox.split(',').map(Number);
-            query = {
-                location: {
-                    $geoWithin: {
-                        $box: [
-                            [minLng, minLat],
-                            [maxLng, maxLat]
-                        ]
+            const parts = bbox.split(',').map(Number);
+            if (parts.length === 4 && parts.every(p => !isNaN(p))) {
+                const [minLng, minLat, maxLng, maxLat] = parts;
+                query = {
+                    location: {
+                        $geoWithin: {
+                            $box: [
+                                [minLng, minLat],
+                                [maxLng, maxLat]
+                            ]
+                        }
                     }
-                }
-            };
+                };
+            }
         }
 
         // Automatic Decay (72 hours)
         const cutOff = new Date(Date.now() - 72 * 60 * 60 * 1000);
         
-        // We still fetch everything if no bbox, but we should enforce one in production
         const tiles = await Tile.find({ 
             ...query,
             timestamp: { $gt: cutOff } 
-        }).limit(2000); // Guard against massive dumps
+        }).limit(2000);
 
-        // Convert to optimized format for frontend
         const tileMap = {};
         tiles.forEach(tile => {
             tileMap[tile.index] = {
@@ -100,6 +101,4 @@ router.get('/map', async (req, res) => {
     }
 });
 
-export default router;
-
-export default router;
+export const gameRouter = router;
