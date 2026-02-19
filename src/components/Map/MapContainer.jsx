@@ -17,6 +17,7 @@ const MapView = () => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
 
+    const { lastPosition, refreshMap } = useGameStore();
 
     useEffect(() => {
         setIsMounted(true);
@@ -57,8 +58,6 @@ const MapView = () => {
             delete window.gm_authFailure;
         };
     }, [apiKey]);
-
-    const { lastPosition } = useGameStore();
     
     // Robust coordinate validation to prevent Leaflet crashes
     const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
@@ -68,7 +67,6 @@ const MapView = () => {
 
     return (
         <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
-            <style>{`
             <style>{`
                 .leaflet-container {
                     background: #080808 !important; /* Slightly lighter so we can see it's there */
@@ -155,6 +153,9 @@ const MapView = () => {
                 <BreadcrumbTrail />
                 <InvasionSimulator />
                 <ReclaimHandler />
+                
+                {/* Scale Optimization: Viewport Fetching */}
+                <MapBoundsManager refreshMap={refreshMap} />
             </MapContainer>
         </div>
     );

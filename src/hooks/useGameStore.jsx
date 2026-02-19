@@ -243,27 +243,15 @@ export const GameProvider = ({ children }) => {
     delete axios.defaults.headers.common['Authorization'];
   };
 
-  const refreshMap = async () => {
+  const refreshMap = async (bbox = null) => {
       try {
-          const res = await axios.get('/api/game/map');
-          const cells = {};
+          const url = bbox ? `/api/game/map?bbox=${bbox}` : '/api/game/map';
+          const res = await axios.get(url);
+          const cells = res.data;
           
-          // Ensure res.data is expected format (map object or array)
-          if (res.data && typeof res.data === 'object' && !Array.isArray(res.data)) {
-              // It's already the Map object from game.js
-              setClaimedCells(res.data);
-          } else if (Array.isArray(res.data)) {
-              res.data.forEach(tile => {
-                  cells[tile.cellIndex || tile.index] = {
-                      ownerId: tile.ownerId || tile.owner,
-                      color: tile.color || tile.ownerColor,
-                      timestamp: tile.timestamp
-                  };
-              });
-              setClaimedCells(cells);
-          }
+          setClaimedCells(cells);
           
-          if (!user) {
+          if (!user && token) {
             const userRes = await axios.get('/api/auth/me');
             setUser(userRes.data);
           }

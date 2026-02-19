@@ -1,26 +1,11 @@
 import express from 'express';
 import User from '../models/User.js';
-
-// TODO: Create a separate model for ClaimedTiles if we want to query them efficiently
-// For MVP, we might just store them in a simple collection or embedded in users (not scalable)
-// Let's create a Tile schema/model quickly implicitly here or separate file?
-// Better to have a separate model for Tiles.
-
-import mongoose from 'mongoose';
-
-const tileSchema = new mongoose.Schema({
-    index: { type: String, required: true, unique: true }, // H3 index
-    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    ownerColor: String,
-    timestamp: { type: Date, default: Date.now }
-});
-
-const Tile = mongoose.model('Tile', tileSchema);
+import Tile from '../models/Tile.js';
+import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// Middleware to verify token (simplified)
-import jwt from 'jsonwebtoken';
+// Middleware to verify token
 const auth = (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token) return res.status(401).json({ message: 'Auth Error' });
@@ -40,59 +25,81 @@ router.post('/claim', auth, async (req, res) => {
         const { index, lat, lng } = req.body;
         const userId = req.user;
 
-        // Find user to get color
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Upsert the tile
+        // Upsert the tile with precise location data
         const tile = await Tile.findOneAndUpdate(
             { index },
             { 
                 owner: userId, 
                 ownerColor: user.color, 
-                timestamp: Date.now() 
+                timestamp: Date.now(),
+                location: {
+                    type: 'Point',
+                    coordinates: [lng, lat] // MongoDB uses [lng, lat]
+                }
             },
             { upsert: true, new: true }
         );
 
-        // Update user stats (increment territory count)
-        // Note: This is a bit naive, ideally we check if we already owned it to not over-count
-        // For MVP, let's just count total owned tiles
+        // Update user stats
         const count = await Tile.countDocuments({ owner: userId });
         await User.findByIdAndUpdate(userId, { 'stats.territories': count });
 
         res.json({ success: true, tile });
     } catch (error) {
+        console.error("Claim error:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
 
-// Get all tiles (for map rendering)
+// Get tiles within BBox (Viewport Filtering)
 router.get('/map', async (req, res) => {
     try {
-        // Implement Decay logic on fetch? Or background job?
-        // Simple decay on fetch:
-        const decayTime = 72 * 60 * 60 * 1000;
-        const cutOff = new Date(Date.now() - decayTime);
-        
-        // Delete old tiles
-        await Tile.deleteMany({ timestamp: { $lt: cutOff } });
+        const { bbox } = req.query; // format: minLng,minLat,maxLng,maxLat
+        let query = {};
 
-        const tiles = await Tile.find({});
-        // Convert to format expected by frontend
-        const tileMap = tiles.reduce((acc, tile) => {
-            acc[tile.index] = {
+        if (bbox) {
+            const [minLng, minLat, maxLng, maxLat] = bbox.split(',').map(Number);
+            query = {
+                location: {
+                    $geoWithin: {
+                        $box: [
+                            [minLng, minLat],
+                            [maxLng, maxLat]
+                        ]
+                    }
+                }
+            };
+        }
+
+        // Automatic Decay (72 hours)
+        const cutOff = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        
+        // We still fetch everything if no bbox, but we should enforce one in production
+        const tiles = await Tile.find({ 
+            ...query,
+            timestamp: { $gt: cutOff } 
+        }).limit(2000); // Guard against massive dumps
+
+        // Convert to optimized format for frontend
+        const tileMap = {};
+        tiles.forEach(tile => {
+            tileMap[tile.index] = {
                 ownerId: tile.owner,
                 color: tile.ownerColor,
                 timestamp: tile.timestamp
             };
-            return acc;
-        }, {});
+        });
 
         res.json(tileMap);
     } catch (error) {
+        console.error("Map fetch error:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
+
+export default router;
 
 export default router;
