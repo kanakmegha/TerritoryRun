@@ -52,9 +52,7 @@ body {
   background: var(--neon-pink);
 }
 
-.leaflet-container {
-  z-index: 0 !important;
-}
+
 
 /* Ensure dashboard overlay doesn't block the map visually */
 .dashboard-container,

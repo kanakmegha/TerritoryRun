@@ -1,83 +1,143 @@
-import { Polygon, useMap } from 'react-leaflet';
+import { useEffect, useMemo } from 'react';
+import { Source, Layer } from 'react-map-gl';
 import { cellToBoundary } from 'h3-js';
 import { useGameStore } from '../../hooks/useGameStore';
-import { useEffect, useState } from 'react';
 
 const HexGrid = () => {
     const { claimedCells, contestedTiles } = useGameStore();
-    const [hexagons, setHexagons] = useState([]);
     
-    useEffect(() => {
-        // ... (rest of useEffect remains the same)
-        const hexagons = Object.entries(claimedCells).map(([index, data]) => {
+    // Memoize the GeoJSON to prevent unnecessary re-computes on every minor state change
+    const { claimedGeoJSON, contestedGeoJSON, glitchGeoJSON } = useMemo(() => {
+        const claimedFeatures = [];
+        const contestedFeatures = [];
+        const glitchFeatures = [];
+
+        // Build Claimed Cells
+        Object.entries(claimedCells).forEach(([index, data]) => {
             try {
-                if (!index || index === 'undefined') return null;
-                const boundary = cellToBoundary(index);
-                if (!boundary || boundary.length === 0) return null;
-                return {
-                    index,
-                    positions: boundary,
-                    color: data.color,
-                    glitch: data.glitch || false
+                if (!index || index === 'undefined') return;
+                // cellToBoundary(index, true) returns [lng, lat] for GeoJSON
+                const boundary = cellToBoundary(index, true);
+                if (!boundary || boundary.length === 0) return;
+                
+                // GeoJSON polygons need to close the loop (first point === last point)
+                const coordinates = [...boundary, boundary[0]];
+                
+                const feature = {
+                    type: 'Feature',
+                    properties: { color: data.color || '#00f3ff' },
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [coordinates]
+                    }
                 };
+                
+                if (data.glitch) {
+                    glitchFeatures.push(feature);
+                } else {
+                    claimedFeatures.push(feature);
+                }
             } catch (e) {
                 console.warn("Invalid H3 index in claimedCells:", index);
-                return null;
             }
-        }).filter(h => h !== null);
+        });
         
-        // Add contested tiles (red)
-        const contestedHexagons = Object.entries(contestedTiles).map(([index, data]) => {
+        // Build Contested Tiles
+        Object.entries(contestedTiles).forEach(([index, data]) => {
             try {
-                if (!index || index === 'undefined') return null;
-                const boundary = cellToBoundary(index);
-                if (!boundary || boundary.length === 0) return null;
-                return {
-                    index,
-                    positions: boundary,
-                    color: '#ff0000', // Red for contested
-                    glitch: data.glitch || false,
-                    contested: true,
-                    key: `${index}-${data.originalOwner || 'rival'}`
+                if (!index || index === 'undefined') return;
+                const boundary = cellToBoundary(index, true);
+                if (!boundary || boundary.length === 0) return;
+                
+                const coordinates = [...boundary, boundary[0]];
+                
+                const feature = {
+                    type: 'Feature',
+                    properties: { color: '#ff0000' },
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [coordinates]
+                    }
                 };
+                
+                if (data.glitch) {
+                    glitchFeatures.push(feature); // Treat contested glitches like normal glitches visually, or separate them
+                } else {
+                    contestedFeatures.push(feature);
+                }
             } catch (e) {
                 console.warn("Invalid H3 index in contestedTiles:", index);
-                return null;
             }
-        }).filter(h => h !== null);
+        });
         
-        setHexagons([...hexagons, ...contestedHexagons]);
+        return {
+            claimedGeoJSON: { type: 'FeatureCollection', features: claimedFeatures },
+            contestedGeoJSON: { type: 'FeatureCollection', features: contestedFeatures },
+            glitchGeoJSON: { type: 'FeatureCollection', features: glitchFeatures },
+        };
     }, [claimedCells, contestedTiles]);
 
     return (
         <>
-            {hexagons.map(hex => (
-                <Polygon 
-                    key={hex.index}
-                    positions={hex.positions}
-                    pathOptions={{ 
-                        color: hex.color, 
-                        fillColor: hex.color, 
-                        fillOpacity: hex.glitch ? 0.8 : (hex.contested ? 0.3 : 0.4),
-                        weight: hex.glitch ? 4 : 2,
-                        className: hex.glitch ? 'hex-glitch' : ''
+            {/* Claimed Cells (Blue mostly) */}
+            <Source id="claimed-hexes" type="geojson" data={claimedGeoJSON}>
+                <Layer 
+                    id="claimed-hexes-fill"
+                    type="fill"
+                    paint={{
+                        'fill-color': ['get', 'color'],
+                        'fill-opacity': 0.4
                     }}
                 />
-            ))}
+                <Layer 
+                    id="claimed-hexes-line"
+                    type="line"
+                    paint={{
+                        'line-color': ['get', 'color'],
+                        'line-width': 2
+                    }}
+                />
+            </Source>
             
-            {/* Glitch Animation CSS */}
-            <style>{`
-                @keyframes glitch {
-                    0%, 100% { opacity: 0.8; filter: brightness(1.5); }
-                    25% { opacity: 0.3; filter: brightness(0.5) hue-rotate(45deg); }
-                    50% { opacity: 1; filter: brightness(2) hue-rotate(-45deg); }
-                    75% { opacity: 0.5; filter: brightness(0.8) hue-rotate(90deg); }
-                }
-                
-                .hex-glitch {
-                    animation: glitch 0.5s ease-in-out;
-                }
-            `}</style>
+            {/* Contested Cells (Red) */}
+            <Source id="contested-hexes" type="geojson" data={contestedGeoJSON}>
+                <Layer 
+                    id="contested-hexes-fill"
+                    type="fill"
+                    paint={{
+                        'fill-color': ['get', 'color'],
+                        'fill-opacity': 0.3
+                    }}
+                />
+                <Layer 
+                    id="contested-hexes-line"
+                    type="line"
+                    paint={{
+                        'line-color': ['get', 'color'],
+                        'line-width': 2
+                    }}
+                />
+            </Source>
+
+            {/* Glitch Cells (Animated/Bright) */}
+            <Source id="glitch-hexes" type="geojson" data={glitchGeoJSON}>
+                <Layer 
+                    id="glitch-hexes-fill"
+                    type="fill"
+                    paint={{
+                        'fill-color': ['get', 'color'],
+                        'fill-opacity': 0.8
+                    }}
+                />
+                <Layer 
+                    id="glitch-hexes-line"
+                    type="line"
+                    paint={{
+                        'line-color': ['get', 'color'],
+                        'line-width': 4
+                    }}
+                />
+            </Source>
         </>
     );
 };

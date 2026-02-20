@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { useMap } from 'react-leaflet';
+import { useMap } from 'react-map-gl';
 import { useGameStore } from '../../hooks/useGameStore';
 
 /**
  * Invisible component that listens for reclaim events and centers the map
  */
 const ReclaimHandler = () => {
-    const map = useMap();
+    const { current: map } = useMap();
     const { showReclaimButton, centerOnLostTiles, lostTiles, startContinuousRun, contestedTiles } = useGameStore();
 
     useEffect(() => {
@@ -19,8 +19,9 @@ const ReclaimHandler = () => {
         if (typeof window !== 'undefined') {
             window.territoryRun_centerOnLostTiles = () => {
                 const center = centerOnLostTiles();
+                // Mapbox flyTo expects {center: [lng, lat]}
                 if (center && map) {
-                    map.flyTo(center, 16, { duration: 1.5 });
+                    map.flyTo({ center: [center.lng, center.lat], zoom: 16, duration: 1500 });
                     
                     // Auto-start GPS tracking for reclaiming
                     if (Object.keys(contestedTiles).length > 0) {

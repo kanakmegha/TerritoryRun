@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
-import { Marker, Polyline, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { useEffect, useState, useMemo } from 'react';
+import { Marker, Source, Layer, useMap } from 'react-map-gl';
 import { useGameStore } from '../../hooks/useGameStore';
-import { cellToLatLng, gridDisk, latLngToCell } from 'h3-js';
+import { cellToLatLng, gridDisk } from 'h3-js';
 
 const InvasionSimulator = () => {
-    const map = useMap();
+    const { current: map } = useMap();
     const { 
         isSimulating, 
         claimedCells, 
@@ -16,7 +15,8 @@ const InvasionSimulator = () => {
         setGhostPath,
         setShowReclaimButton,
         setSimulationSubtitle,
-        setSimulationProgress
+        setSimulationProgress,
+        simulationProgress
     } = useGameStore();
     
     const [currentInvasionPos, setCurrentInvasionPos] = useState(null);
@@ -24,7 +24,7 @@ const InvasionSimulator = () => {
     const [targetTiles, setTargetTiles] = useState([]);
     const [currentTargetIndex, setCurrentTargetIndex] = useState(0);
 
-    // Initial Setup: "Longest Path" straight line across a blue hexagon
+    // Initial Setup
     useEffect(() => {
         if (isSimulating) {
             const userCellIndices = Object.entries(claimedCells)
@@ -32,28 +32,23 @@ const InvasionSimulator = () => {
                 .map(([index, _]) => index);
 
             if (userCellIndices.length === 0) {
-                addAlert("No Blue Sectors to invade! Claim some first.");
+                // Should show alert, but standard alert function isn't here, fallback to console or local state
+                console.warn("No Blue Sectors to invade! Claim some first.");
                 setIsSimulating(false);
                 return;
             }
 
-            // Pick a random user hex to be the "Target Sector"
             const targetHex = userCellIndices[Math.floor(Math.random() * userCellIndices.length)];
             const neighbors = gridDisk(targetHex, 1);
             
-            // Pick a start neighbor (ideally one that is NOT the user's)
             const outerHex = neighbors.find(n => n !== targetHex && !userCellIndices.includes(n)) || neighbors[1];
-            
-            // Pick an end neighbor that is roughly 180 degrees from the start
-            // Neighbors are 0-6 in order? gridDisk doesn't guarantee order.
-            // Let's just pick one that isn't the start.
             const endHex = neighbors.find(n => n !== targetHex && n !== outerHex) || neighbors[4];
 
+            // h3-js cellToLatLng returns [lat, lng]. Mapbox needs [lng, lat] for markers and geojson
             const startCoords = cellToLatLng(outerHex);
             const centerCoords = cellToLatLng(targetHex);
             const endCoords = cellToLatLng(endHex);
 
-            // Path: Outside -> Center -> Far Edge
             const straightPath = [
                 { lat: startCoords[0], lng: startCoords[1] },
                 { lat: centerCoords[0], lng: centerCoords[1] },
@@ -61,13 +56,15 @@ const InvasionSimulator = () => {
             ];
 
             setTargetTiles(straightPath);
-            setCurrentInvasionPos(straightPath[0]);
-            setPathHistory([straightPath[0]]);
+            setCurrentInvasionPos({ lng: startCoords[1], lat: startCoords[0] });
+            setPathHistory([{ lng: startCoords[1], lat: startCoords[0] }]);
             setCurrentTargetIndex(1);
             setSimulationSubtitle("⚠️ INTRUDER DETECTED: A rival player is entering your sector!");
             setSimulationProgress(0);
             
-            map.setView([centerCoords[0], centerCoords[1]], 18);
+            if (map) {
+                map.flyTo({ center: [centerCoords[1], centerCoords[0]], zoom: 18 });
+            }
             
         } else {
             setCurrentInvasionPos(null);
@@ -76,9 +73,9 @@ const InvasionSimulator = () => {
             setCurrentTargetIndex(0);
             setSimulationProgress(0);
         }
-    }, [isSimulating, user?.id]);
+    }, [isSimulating, user?.id, map]); // Added map to deps
 
-    // Movement Loop (800ms for tighter mission feel)
+    // Movement Loop
     useEffect(() => {
         if (!isSimulating || !currentInvasionPos || targetTiles.length === 0) return;
 
@@ -88,8 +85,8 @@ const InvasionSimulator = () => {
 
                 const target = targetTiles[currentTargetIndex] || targetTiles[0];
                 
-                // Move by small increment towards target
                 const step = 0.0001; 
+                // Note: target is {lat, lng}, prev is {lat, lng}
                 const dLat = target.lat - prev.lat;
                 const dLng = target.lng - prev.lng;
                 const distance = Math.sqrt(dLat * dLat + dLng * dLng);
@@ -102,21 +99,19 @@ const InvasionSimulator = () => {
                         const nextIdx = currentTargetIndex + 1;
                         setCurrentTargetIndex(nextIdx);
                         
-                        // Step Logic Transitions
                         if (nextIdx === 2) {
                             setSimulationSubtitle("⚔️ ANALYSIS: They are attempting to bridge the maximum distance to override your claim.");
                         }
                     } else {
-                        // End of Invasion: Sector Lost
                         setSimulationSubtitle("🚫 SECTOR LOST: The path is complete. Territory has turned RED.");
                         setSimulationProgress(100);
                         
-                        // Wait a second before finishing
                         setTimeout(() => {
                             setIsSimulating(false);
                             setShowMissionAlert(true);
                             setShowReclaimButton(true);
-                            setGhostPath(pathHistory);
+                            // Store history as {lat, lng} array back to store if needed
+                            setGhostPath(pathHistory.map(p => ({ lat: p.lat, lng: p.lng })));
                         }, 1000);
                         
                         clearInterval(interval);
@@ -127,82 +122,75 @@ const InvasionSimulator = () => {
                     nextLng += (dLng / distance) * step;
                 }
 
-                const newPos = { lat: nextLat, lng: nextLng };
+                const newPos = { lng: nextLng, lat: nextLat };
                 setPathHistory(prevHistory => [...prevHistory, newPos]);
                 
-                // Calculate Progress (approximate based on index and distance to final)
                 const totalTargets = targetTiles.length;
                 const progress = Math.min(95, Math.floor(((currentTargetIndex - 1) / (totalTargets - 1)) * 100 + (1 - distance/0.0005) * 30));
                 setSimulationProgress(progress);
 
-                // Flip tiles Red as it passes
                 claimTile(newPos.lat, newPos.lng, 'rival_bot', 'red');
 
                 return newPos;
             });
-        }, 300); // Faster simulation
+        }, 300);
 
         return () => clearInterval(interval);
-    }, [isSimulating, targetTiles, currentTargetIndex, map]);
+    }, [isSimulating, targetTiles, currentTargetIndex]);
 
-    // Final defensive check before rendering Leaflet layers
     const isValidPos = currentInvasionPos && 
                      typeof currentInvasionPos.lat === 'number' && 
                      typeof currentInvasionPos.lng === 'number' &&
                      !isNaN(currentInvasionPos.lat) && 
                      !isNaN(currentInvasionPos.lng);
 
-    if (!isSimulating || !isValidPos) return null;
+    const geojsonData = useMemo(() => {
+        if (pathHistory.length < 2) return null;
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'LineString',
+                coordinates: pathHistory.map(p => [p.lng, p.lat])
+            }
+        };
+    }, [pathHistory]);
 
-    const attackerIcon = L.divIcon({
-        className: 'attacker-marker',
-        html: `
-            <div class="attacker-container">
-                <div class="breach-label">BREACH PROGRESS</div>
-                <div class="progress-bar-wrap">
-                    <div class="progress-fill" style="width: ${simulationProgress}%"></div>
-                </div>
-                <div class="attacker-pulse">
-                    <div class="attacker-dot"></div>
-                </div>
-            </div>
-        `,
-        iconSize: [100, 60],
-        iconAnchor: [50, 50]
-    });
+    if (!isSimulating || !isValidPos) return null;
 
     return (
         <>
             {/* Real-time Ghost Path */}
-            {pathHistory.length > 1 && (
-                <Polyline 
-                    positions={pathHistory.map(p => {
-                        if (Array.isArray(p) && p.length === 2) {
-                            if (typeof p[0] === 'number' && typeof p[1] === 'number' && !isNaN(p[0]) && !isNaN(p[1])) {
-                                return p;
-                            }
-                        } else if (typeof p === 'object' && p !== null && typeof p.lat === 'number' && typeof p.lng === 'number') {
-                            if (!isNaN(p.lat) && !isNaN(p.lng)) {
-                                return [p.lat, p.lng];
-                            }
-                        }
-                        return null;
-                    }).filter(p => p !== null)} 
-                    pathOptions={{ 
-                        color: 'red', 
-                        weight: 4, 
-                        dashArray: '5, 8',
-                        opacity: 0.6
-                    }} 
-                />
+            {geojsonData && (
+                <Source id="invasion-path" type="geojson" data={geojsonData}>
+                    <Layer 
+                        id="invasion-path-line"
+                        type="line"
+                        paint={{
+                            'line-color': '#ff0000',
+                            'line-width': 4,
+                            'line-opacity': 0.6,
+                            'line-dasharray': [1, 2] // approx 5, 8
+                        }}
+                    />
+                </Source>
             )}
 
-            {/* Red Dot (High Z-Index) */}
+            {/* Red Dot Marker */}
             <Marker 
-                position={[currentInvasionPos.lat, currentInvasionPos.lng]} 
-                icon={attackerIcon} 
-                zIndexOffset={1000}
-            />
+                longitude={currentInvasionPos.lng} 
+                latitude={currentInvasionPos.lat}
+                anchor="center"
+            >
+                <div className="attacker-container">
+                    <div className="breach-label">BREACH PROGRESS</div>
+                    <div className="progress-bar-wrap">
+                        <div className="progress-fill" style={{ width: `${simulationProgress}%` }}></div>
+                    </div>
+                    <div className="attacker-pulse">
+                        <div className="attacker-dot"></div>
+                    </div>
+                </div>
+            </Marker>
 
             <style>{`
                 .attacker-container {

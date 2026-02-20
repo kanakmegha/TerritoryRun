@@ -1,163 +1,91 @@
-import { useState, useEffect } from 'react';
-import { MapContainer, LayersControl, TileLayer } from 'react-leaflet';
+import { useState, useRef, useEffect } from 'react';
+import Map, { MapProvider } from 'react-map-gl';
 import PlayerMarker from './PlayerMarker';
 import HexGrid from './HexGrid';
 import InvasionSimulator from './InvasionSimulator';
 import ReclaimHandler from './ReclaimHandler';
 import BreadcrumbTrail from './BreadcrumbTrail';
-import GoogleLayer from 'react-leaflet-google-layer';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const MapView = () => {
-    const [isMounted, setIsMounted] = useState(false);
-    const [googleReady, setGoogleReady] = useState(false);
-    const [googleFailed, setGoogleFailed] = useState(false);
-    const defaultPosition = [37.7749, -122.4194];
+    const { lastPosition } = useGameStore();
 
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-
-    const { lastPosition, refreshMap } = useGameStore();
-
-    useEffect(() => {
-        setIsMounted(true);
-        console.log("📍 Map initialization. API Key present:", !!apiKey);
-        
-        // Safety: Global hook for Google Maps Auth Failure (Referrer/Key errors)
-        window.gm_authFailure = () => {
-            console.error("🚨 Google Maps Authentication Failed. Falling back to OSM.");
-            setGoogleFailed(true);
-            setGoogleReady(true);
-        };
-
-        if (!apiKey) {
-            setGoogleReady(true);
-            return;
-        }
-
-        const timeout = setTimeout(() => {
-            if (!window.google || !window.google.maps) {
-                console.warn("🚨 Google Maps failed to load (timeout). Switching to OSM.");
-                setGoogleFailed(true);
-                setGoogleReady(true);
-            }
-        }, 5000);
-
-        const checkGoogle = () => {
-            if (window.google && window.google.maps) {
-                setGoogleReady(true);
-                clearTimeout(timeout);
-            } else {
-                setTimeout(checkGoogle, 200);
-            }
-        };
-        checkGoogle();
-
-        return () => {
-            clearTimeout(timeout);
-            delete window.gm_authFailure;
-        };
-    }, [apiKey]);
+    const apiKey = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
     
-    // Robust coordinate validation to prevent Leaflet crashes
-    const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
-    const mapCenter = isValidPos(lastPosition) ? [lastPosition.lat, lastPosition.lng] : defaultPosition;
+    // Default Mapbox Style
+    // mapbox://styles/mapbox/satellite-v9 for satellite
+    // mapbox://styles/mapbox/dark-v11 for dark mode
+    const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/satellite-v9');
 
-    if (!isMounted) return null;
+    // Robust coordinate validation
+    const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
+    
+    // Initialize view state
+    const initialViewState = {
+        longitude: isValidPos(lastPosition) ? lastPosition.lng : -122.4194,
+        latitude: isValidPos(lastPosition) ? lastPosition.lat : 37.7749,
+        zoom: isValidPos(lastPosition) ? 18 : 15,
+        pitch: 45, // Mapbox allows tilting the camera
+        bearing: 0
+    };
 
     return (
-        <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
-            <style>{`
-                .leaflet-container {
-                    background: #080808 !important; /* Slightly lighter so we can see it's there */
-                    height: 100vh !important;
-                    width: 100% !important;
-                    z-index: 1 !important; /* Above body, below dashboard */
-                }
-                .map-tiles {
-                    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-                }
-                .sat-overlay {
-                    position: absolute;
-                    top: 0; left: 0; right: 0; bottom: 0;
-                    z-index: 9999;
-                    display: flex; 
-                    flex-direction: column;
-                    align-items: center; 
-                    justify-content: center; 
-                    background: rgba(5, 5, 5, 0.9); 
-                    color: #00f3ff;
-                    font-family: monospace;
-                    pointer-events: none;
-                }
-            `}</style>
-
-            {!googleReady && apiKey && (
-                <div className="sat-overlay">
-                    <div style={{ marginBottom: '10px', fontSize: '1.2rem', letterSpacing: '2px' }}>ESTABLISHING SATELLITE LINK...</div>
-                    <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>BYPASSING ENCRYPTION...</div>
-                </div>
-            )}
-
-            {googleFailed && apiKey && (
-                <div style={{ 
-                    position: 'absolute', 
-                    top: '80px', left: '50%', transform: 'translateX(-50%)',
-                    zIndex: 10000, 
-                    background: 'rgba(255, 0, 0, 0.2)', 
-                    border: '1px solid #ff0055',
-                    padding: '8px 16px',
-                    borderRadius: '4px',
-                    color: '#ff0055',
-                    fontSize: '0.7rem',
-                    pointerEvents: 'none',
-                    textAlign: 'center'
-                }}>
-                    GOOGLE LINK OFFLINE: INITIALIZING OSM FALLBACK...
-                </div>
-            )}
-            
-            <MapContainer 
-                center={mapCenter} 
-                zoom={isValidPos(lastPosition) ? 18 : 15} 
-                maxZoom={21}
-                style={{ height: '100vh', width: '100%', background: '#050505' }}
-                zoomControl={true}
-            >
-                {(apiKey && !googleFailed) ? (
-                    <LayersControl position="topright">
-                        <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
-                            <GoogleLayer 
-                                apiKey={apiKey} 
-                                type="hybrid" 
-                            />
-                        </LayersControl.BaseLayer>
-                        <LayersControl.BaseLayer name="Google Roadmap">
-                            <GoogleLayer 
-                                apiKey={apiKey} 
-                                type="roadmap" 
-                            />
-                        </LayersControl.BaseLayer>
-                    </LayersControl>
-                ) : (
-                    <TileLayer
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        className="map-tiles"
-                    />
+        <MapProvider>
+            <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
+                <style>{`
+                    .mapboxgl-canvas {
+                        z-index: 1 !important;
+                    }
+                    .sat-overlay {
+                        position: absolute;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        z-index: 9999;
+                        display: flex; 
+                        flex-direction: column;
+                        align-items: center; 
+                        justify-content: center; 
+                        background: rgba(5, 5, 5, 0.9); 
+                        color: #00f3ff;
+                        font-family: monospace;
+                        pointer-events: none;
+                    }
+                `}</style>
+                
+                {!apiKey && (
+                    <div style={{ 
+                        position: 'absolute', 
+                        top: '80px', left: '50%', transform: 'translateX(-50%)',
+                        zIndex: 10000, 
+                        background: 'rgba(255, 0, 0, 0.2)', 
+                        border: '1px solid #ff0055',
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        color: '#ff0055',
+                        fontSize: '0.7rem',
+                        pointerEvents: 'none',
+                        textAlign: 'center'
+                    }}>
+                        MAPBOX TOKEN MISSING: PLEASE ADD TO .ENV
+                    </div>
                 )}
 
-                {/* Overlays */}
-                <PlayerMarker />
-                <HexGrid />
-                <BreadcrumbTrail />
-                <InvasionSimulator />
-                <ReclaimHandler />
-                
-                {/* Scale Optimization: Viewport Fetching */}
-                <MapBoundsManager refreshMap={refreshMap} />
-            </MapContainer>
-        </div>
+                <Map
+                    id="main-map"
+                    initialViewState={initialViewState}
+                    mapStyle={mapStyle}
+                    mapboxAccessToken={apiKey}
+                    style={{ width: '100%', height: '100%' }}
+                    maxZoom={22}
+                >
+                    {/* Overlays */}
+                    <PlayerMarker />
+                    <HexGrid />
+                    <BreadcrumbTrail />
+                    <InvasionSimulator />
+                    <ReclaimHandler />
+                </Map>
+            </div>
+        </MapProvider>
     );
 };
 
