@@ -15,7 +15,7 @@ const MapView = () => {
     // Default Mapbox Style
     // mapbox://styles/mapbox/satellite-v9 for satellite
     // mapbox://styles/mapbox/dark-v11 for dark mode
-    const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/satellite-v9');
+    const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/dark-v11');
 
     // Robust coordinate validation
     const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);

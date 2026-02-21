@@ -8,29 +8,36 @@ const PlayerMarker = () => {
     const hasCentered = useRef(false);
     const [animatedPos, setAnimatedPos] = useState(null);
 
+    const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
+
     // Initial positioning
     useEffect(() => {
-        if (lastPosition && !hasCentered.current && map) {
-            map.flyTo({ center: [lastPosition.lng, lastPosition.lat], zoom: 18, duration: 1500 });
-            setAnimatedPos([lastPosition.lng, lastPosition.lat]);
-            hasCentered.current = true;
+        if (isValidPos(lastPosition) && !hasCentered.current && map) {
+            // Check if map is loaded and ready before calling methods that require it
+            try {
+                map.flyTo({ center: [lastPosition.lng, lastPosition.lat], zoom: 18, duration: 1500 });
+                setAnimatedPos([lastPosition.lng, lastPosition.lat]);
+                hasCentered.current = true;
+            } catch (e) {
+                console.warn("Map not ready for flyTo yet");
+            }
         }
     }, [lastPosition, map]);
 
     // Pro: Lazy Follow & Smooth Auto-centering
     useEffect(() => {
-        if (!lastPosition || isNaN(lastPosition.lat) || isNaN(lastPosition.lng)) return;
+        if (!isValidPos(lastPosition)) return;
         
         const newPos = [lastPosition.lng, lastPosition.lat]; // Mapbox uses [lng, lat]
         
         // Handle Auto-follow with threshold (Lazy Follow)
         if (isCameraLocked && map) {
-            // Note: distance calculation could be improved or ported, 
-            // but for simplicity we rely on the map's bounds or a standard threshold.
-            // In a real app we'd use turf.js for distance, but here we'll just panTo 
-            // if we've moved significantly or haven't centered yet.
-            map.panTo({ center: newPos, duration: 1200 });
-            hasCentered.current = true;
+            try {
+                map.panTo({ center: newPos, duration: 1200 });
+                hasCentered.current = true;
+            } catch (e) {
+                console.warn("Map not ready for panTo yet");
+            }
         }
 
         setAnimatedPos(newPos);
