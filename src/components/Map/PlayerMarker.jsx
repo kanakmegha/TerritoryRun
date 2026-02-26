@@ -2,11 +2,55 @@ import { useEffect, useState, useRef } from 'react';
 import { Marker, useMap } from 'react-map-gl';
 import { useGameStore } from '../../hooks/useGameStore';
 
+// Custom hook to smoothly interpolate GPS coordinates for Mapbox GL JS
+function useLerpPosition(targetLng, targetLat, durationMs = 1200) {
+    const [current, setCurrent] = useState([targetLng, targetLat]);
+    const startPos = useRef([targetLng, targetLat]);
+    const targetPos = useRef([targetLng, targetLat]);
+    const startTime = useRef(performance.now());
+    const raf = useRef(null);
+
+    useEffect(() => {
+        // If the jump is massive (initial load), skip animation
+        const dLat = Math.abs(targetLat - current[1]);
+        const dLng = Math.abs(targetLng - current[0]);
+        if (dLat > 0.01 || dLng > 0.01 || (current[0] === 0 && current[1] === 0)) {
+            setCurrent([targetLng, targetLat]);
+            return;
+        }
+
+        startPos.current = current;
+        targetPos.current = [targetLng, targetLat];
+        startTime.current = performance.now();
+
+        const animate = (time) => {
+            const elapsed = time - startTime.current;
+            const progress = Math.min(elapsed / durationMs, 1);
+            const easeProgress = 1 - Math.pow(1 - progress, 4); // ease-out
+
+            const newLng = startPos.current[0] + (targetPos.current[0] - startPos.current[0]) * easeProgress;
+            const newLat = startPos.current[1] + (targetPos.current[1] - startPos.current[1]) * easeProgress;
+            
+            setCurrent([newLng, newLat]);
+
+            if (progress < 1) {
+                raf.current = requestAnimationFrame(animate);
+            }
+        };
+        
+        if (raf.current) cancelAnimationFrame(raf.current);
+        raf.current = requestAnimationFrame(animate);
+
+        return () => cancelAnimationFrame(raf.current);
+    }, [targetLng, targetLat]);
+
+    return current;
+}
+
 const PlayerMarker = () => {
     const { current: map } = useMap();
     const { lastPosition, gpsStatus, isCameraLocked } = useGameStore();
     const hasCentered = useRef(false);
-    const [animatedPos, setAnimatedPos] = useState(null);
 
     const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
 
@@ -16,7 +60,6 @@ const PlayerMarker = () => {
             // Check if map is loaded and ready before calling methods that require it
             try {
                 map.flyTo({ center: [lastPosition.lng, lastPosition.lat], zoom: 18, duration: 1500 });
-                setAnimatedPos([lastPosition.lng, lastPosition.lat]);
                 hasCentered.current = true;
             } catch (e) {
                 console.warn("Map not ready for flyTo yet");
@@ -24,7 +67,7 @@ const PlayerMarker = () => {
         }
     }, [lastPosition, map]);
 
-    // Pro: Lazy Follow & Smooth Auto-centering
+    // Pro: Lazy Follow & Auto-centering
     useEffect(() => {
         if (!isValidPos(lastPosition)) return;
         
@@ -33,17 +76,35 @@ const PlayerMarker = () => {
         // Handle Auto-follow with threshold (Lazy Follow)
         if (isCameraLocked && map) {
             try {
-                map.panTo({ center: newPos, duration: 1200 });
-                hasCentered.current = true;
+                const currentCenter = map.getCenter();
+                if (currentCenter) {
+                    // Quick distance check (approximate meter calculation)
+                    // 1 degree lat ~ 111,320 meters
+                    const dLat = (newPos[1] - currentCenter.lat) * 111320;
+                    const dLng = (newPos[0] - currentCenter.lng) * 111320 * Math.cos(currentCenter.lat * Math.PI / 180);
+                    const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+
+                    if (!hasCentered.current || distance > 15) {
+                        map.panTo({ center: newPos, duration: 1200 });
+                        hasCentered.current = true;
+                    }
+                } else {
+                    map.panTo({ center: newPos, duration: 1200 });
+                    hasCentered.current = true;
+                }
             } catch (e) {
                 console.warn("Map not ready for panTo yet");
             }
         }
-
-        setAnimatedPos(newPos);
     }, [lastPosition, map, isCameraLocked]);
 
-    if (gpsStatus !== 'locked' || !animatedPos) {
+    // Smooth Glide via coordinate interpolation, not CSS
+    const animatedPos = useLerpPosition(
+        isValidPos(lastPosition) ? lastPosition.lng : 0, 
+        isValidPos(lastPosition) ? lastPosition.lat : 0
+    );
+
+    if (gpsStatus !== 'locked' || !isValidPos(lastPosition)) {
         return (
             <div className="locating-overlay">
                 <div className="locating-spinner"></div>
@@ -88,13 +149,14 @@ const PlayerMarker = () => {
                 longitude={animatedPos[0]}
                 latitude={animatedPos[1]}
                 anchor="center"
+                style={{ zIndex: 1000 }}
             >
                 <div className="gps-marker-container">
                     <div className="player-dot"></div>
                 </div>
             </Marker>
             
-            {/* CSS for glowing GPS marker with Smooth Glide */}
+            {/* CSS for glowing GPS marker - NO TRANSFORM TRANSITIONS */}
             <style>{`
                 .gps-marker-container {
                     background: transparent;

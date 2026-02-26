@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const Signup = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
       username: '',
       email: '',
@@ -25,10 +27,13 @@ const Signup = ({ onSwitch }) => {
       const result = await signup(formData);
       if (!result.success) {
           setError(result.message);
+      } else {
+          navigate('/home');
       }
     } catch (err) {
       console.error("Signup internal error:", err);
-      setError('Registration failed: ' + err.message);
+      const serverMessage = err.response?.data?.message || err.message;
+      setError('Registration failed: ' + serverMessage);
     } finally {
       setLoading(false);
     }

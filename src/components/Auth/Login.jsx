@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const Login = ({ onSwitch }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,9 +19,12 @@ const Login = ({ onSwitch }) => {
       const result = await login({ email, password });
       if (!result.success) {
           setError(result.message);
+      } else {
+          navigate('/home');
       }
     } catch (err) {
-      setError('Login failed');
+      const serverMessage = err.response?.data?.message || 'Login failed';
+      setError('System Error: ' + serverMessage);
     } finally {
       setLoading(false);
     }

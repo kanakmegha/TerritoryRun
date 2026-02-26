@@ -1,21 +1,65 @@
 import { useState, useRef, useEffect } from 'react';
-import Map, { MapProvider } from 'react-map-gl';
+import Map, { MapProvider, Marker, useMap } from 'react-map-gl';
 import PlayerMarker from './PlayerMarker';
-import HexGrid from './HexGrid';
-import InvasionSimulator from './InvasionSimulator';
-import ReclaimHandler from './ReclaimHandler';
 import BreadcrumbTrail from './BreadcrumbTrail';
+import TerritoryOverlay from './TerritoryOverlay';
 import { useGameStore } from '../../hooks/useGameStore';
 
-const MapView = () => {
+// Dynamic Camera Controller Component
+const MapCameraController = () => {
+    const { current } = useMap(); // Get mapbox instance safely inside context
+    const { lastPosition, activeGameMode, isCameraLocked } = useGameStore();
+    
+    useEffect(() => {
+        if (!current || !lastPosition || !isCameraLocked) return;
+
+        // Force rigorous zoom during active run modes
+        if (activeGameMode === 'claim' || activeGameMode === 'run') {
+            current.flyTo({
+                center: [lastPosition.lng, lastPosition.lat],
+                zoom: 18,
+                duration: 1000,
+                essential: true
+            });
+        }
+    }, [lastPosition, activeGameMode, current, isCameraLocked]);
+
+    return null;
+};
+
+// Use free Carto DB Dark Matter tiles to bypass Mapbox 403 block
+const cartoDarkStyle = {
+    version: 8,
+    sources: {
+        'carto-dark': {
+            type: 'raster',
+            tiles: [
+                'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }
+    },
+    layers: [
+        {
+            id: 'carto-dark-layer',
+            type: 'raster',
+            source: 'carto-dark',
+            minzoom: 0,
+            maxzoom: 22
+        }
+    ]
+};
+
+const MapContainer = () => {
     const { lastPosition } = useGameStore();
 
     const apiKey = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
     
-    // Default Mapbox Style
-    // mapbox://styles/mapbox/satellite-v9 for satellite
-    // mapbox://styles/mapbox/dark-v11 for dark mode
-    const [mapStyle, setMapStyle] = useState('mapbox://styles/mapbox/dark-v11');
+    const [mapStyle] = useState(cartoDarkStyle);
 
     // Robust coordinate validation
     const isValidPos = (pos) => pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && !isNaN(pos.lat) && !isNaN(pos.lng);
@@ -34,20 +78,7 @@ const MapView = () => {
             <div style={{ height: '100vh', width: '100%', position: 'relative', background: '#050505' }}>
                 <style>{`
                     .mapboxgl-canvas {
-                        z-index: 1 !important;
-                    }
-                    .sat-overlay {
-                        position: absolute;
-                        top: 0; left: 0; right: 0; bottom: 0;
-                        z-index: 9999;
-                        display: flex; 
-                        flex-direction: column;
-                        align-items: center; 
-                        justify-content: center; 
-                        background: rgba(5, 5, 5, 0.9); 
-                        color: #00f3ff;
-                        font-family: monospace;
-                        pointer-events: none;
+                        z-index: 999 !important; /* MapmyIndia Sync: Overlay hexes clearly over base satellite */
                     }
                 `}</style>
                 
@@ -77,16 +108,16 @@ const MapView = () => {
                     style={{ width: '100%', height: '100%' }}
                     maxZoom={22}
                 >
+                    <MapCameraController />
+                    
                     {/* Overlays */}
-                    <PlayerMarker />
-                    <HexGrid />
+                    <TerritoryOverlay />
                     <BreadcrumbTrail />
-                    <InvasionSimulator />
-                    <ReclaimHandler />
+                    <PlayerMarker />
                 </Map>
             </div>
         </MapProvider>
     );
 };
 
-export default MapView;
+export default MapContainer;

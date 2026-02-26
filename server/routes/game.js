@@ -1,6 +1,6 @@
 import express from 'express';
 import User from '../models/User.js';
-import Tile from '../models/Tile.js';
+import Territory from '../models/Territory.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -19,86 +19,128 @@ const auth = (req, res, next) => {
     }
 };
 
-// Claim a tile
+// Claim a New Vector Territory Poly
 router.post('/claim', auth, async (req, res) => {
     try {
-        const { index, lat, lng } = req.body;
+        const { boundary, area, perimeter, reward } = req.body;
         const userId = req.user;
+
+        if (!boundary || !Array.isArray(boundary) || boundary.length < 3) {
+            return res.status(400).json({ message: 'Invalid geometric boundary' });
+        }
 
         const user = await User.findById(userId);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Upsert the tile with precise location data
-        const tile = await Tile.findOneAndUpdate(
-            { index },
-            { 
-                owner: userId, 
-                ownerColor: user.color, 
-                timestamp: Date.now(),
-                location: {
-                    type: 'Point',
-                    coordinates: [lng, lat] // MongoDB uses [lng, lat]
-                }
-            },
-            { upsert: true, new: true }
-        );
+        const territory = new Territory({
+            owner: userId,
+            ownerColor: user.color,
+            area_sqm: area,
+            perimeter_m: perimeter,
+            strength_count: 1,
+            strength: area, // Initial strength is just 1x Area
+            path_nodes: boundary, // Store raw path coordinates
+            boundary: {
+                type: 'Polygon',
+                coordinates: [boundary] // GeoJSON requires wrapped array: [[[lng, lat]]]
+            }
+        });
 
-        // Update user stats
-        const count = await Tile.countDocuments({ owner: userId });
-        await User.findByIdAndUpdate(userId, { 'stats.territories': count });
+        await territory.save();
 
-        res.json({ success: true, tile });
+        // Dynamically increment user stats
+        if (reward > 0) {
+            await User.findByIdAndUpdate(userId, { $inc: { 'stats.territories': reward } });
+        }
+
+        res.json({ success: true, territory });
     } catch (error) {
         console.error("Claim error:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
 
-// Get tiles within BBox (Viewport Filtering)
+// Fetch all active Territories
 router.get('/map', async (req, res) => {
     try {
-        const { bbox } = req.query; // format: minLng,minLat,maxLng,maxLat
-        let query = {};
-
-        if (bbox) {
-            const parts = bbox.split(',').map(Number);
-            if (parts.length === 4 && parts.every(p => !isNaN(p))) {
-                const [minLng, minLat, maxLng, maxLat] = parts;
-                query = {
-                    location: {
-                        $geoWithin: {
-                            $box: [
-                                [minLng, minLat],
-                                [maxLng, maxLat]
-                            ]
-                        }
-                    }
-                };
-            }
-        }
-
-        // Automatic Decay (72 hours)
-        const cutOff = new Date(Date.now() - 72 * 60 * 60 * 1000);
+        // Viewport bounding box filtering can be added here if payload gets too large
         
-        const tiles = await Tile.find({ 
-            ...query,
+        // 7 Day Decay limit (prevent db clutter)
+        const cutOff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        
+        const territories = await Territory.find({ 
             timestamp: { $gt: cutOff } 
-        }).limit(2000);
+        }).limit(1000).select('-__v'); // Send down clean JSON
 
-        const tileMap = {};
-        tiles.forEach(tile => {
-            tileMap[tile.index] = {
-                ownerId: tile.owner,
-                color: tile.ownerColor,
-                timestamp: tile.timestamp
-            };
-        });
-
-        res.json(tileMap);
+        res.json(territories);
     } catch (error) {
         console.error("Map fetch error:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 });
 
-export const gameRouter = router;
+// Process Attack on Territory
+router.post('/attack', auth, async (req, res) => {
+    try {
+        const { territoryId, attackDistance } = req.body;
+        const userId = req.user;
+
+        const territory = await Territory.findById(territoryId);
+        if (!territory) return res.status(404).json({ message: 'Territory not found' });
+        
+        if (territory.owner.toString() === userId.toString()) {
+            return res.status(400).json({ message: 'Cannot attack your own territory' });
+        }
+
+        const requiredDistance = territory.perimeter_m * territory.strength;
+
+        // In a real app, you'd want to verify the GPS path here. 
+        // For simplicity, we trust the client's calculated attack distance if it meets the criteria.
+        if (attackDistance >= requiredDistance) {
+            const user = await User.findById(userId);
+            
+            // Conquer!
+            territory.owner = userId;
+            territory.ownerColor = user.color;
+            territory.timestamp = Date.now();
+            territory.strength_count = 1; // Reset defense stat on capture
+            territory.strength = territory.area_sqm; // Reset strength
+            
+            await territory.save();
+
+            // Adjust Stats
+            await User.findByIdAndUpdate(userId, { $inc: { 'stats.territories': 1 } });
+            
+            // Decrease old owner stats (Optional - but logical)
+            await User.findByIdAndUpdate(territory.owner, { $inc: { 'stats.territories': -1 } });
+
+            res.json({ success: true, message: 'Territory Reclaimed!', territory });
+        } else {
+            res.status(400).json({ success: false, message: 'Attack criteria not met' });
+        }
+    } catch (error) {
+        console.error("Attack error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// Predict / Suggest Routes (Mock Mappls Integration)
+router.post('/suggest', async (req, res) => {
+    try {
+        const { targetDistance, lat, lng } = req.body;
+        
+        // Mock mapmyindia predictive routing curves
+        const routes = [
+            { id: 'r1', name: 'Alpha Protocol Loop', type: 'Urban', distance: (targetDistance * 1.05).toFixed(1) },
+            { id: 'r2', name: 'Neon Grid Circuit', type: 'Flat', distance: (targetDistance * 0.92).toFixed(1) },
+            { id: 'r3', name: 'Outskirts Path', type: 'Hilly', distance: (targetDistance * 1.15).toFixed(1) }
+        ];
+
+        res.json({ success: true, routes });
+    } catch (error) {
+        console.error("Suggest error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+export default router;

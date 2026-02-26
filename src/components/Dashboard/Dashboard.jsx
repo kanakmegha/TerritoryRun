@@ -1,17 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useGameStore } from '../../hooks/useGameStore';
+import { useNavigate, useLocation } from 'react-router-dom';
 import StatsCard from './StatsCard';
-import { Trophy, Map, Activity, AlertTriangle } from 'lucide-react';
+import { Trophy, Map as MapIcon, Activity, AlertTriangle, ArrowLeft } from 'lucide-react';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const { 
-    user, alerts, logout, isSimulating,
-    startInvasionSimulation, showReclaimButton,
-    showMissionAlert, setShowMissionAlert, startContinuousRun,
+    user, alerts, logout, activeGameMode, startTracking,
     currentRun, addAlert, simulateStep,
-    isCameraLocked, setCameraLocked,
-    simulationSubtitle, simulationProgress
+    isCameraLocked, setCameraLocked
   } = useGameStore();
+
+  // Check URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode');
+    
+    if (mode === 'claim' || mode === 'run') {
+        if (!currentRun.isActive) {
+            startTracking(mode);
+        }
+    }
+  }, [location, startTracking, currentRun.isActive]);
   
   // 1. Safety Guard: Prevent crash if user stats haven't loaded yet
   if (!user || !user.stats) {
@@ -23,19 +36,7 @@ const Dashboard = () => {
     );
   }
 
-  const handleReclaim = () => {
-      try {
-        addAlert("⚔️ Reclaim activated! GPS tracking starting...");
-        startContinuousRun(); 
-        
-        // Use a safer check for global window functions
-        if (typeof window !== 'undefined' && window.territoryRun_centerOnLostTiles) {
-            window.territoryRun_centerOnLostTiles();
-        }
-      } catch (err) {
-        console.error("Reclaim error:", err);
-      }
-  };
+
 
   // 2. Rank Calculation Logic with fallback to avoid Division by Zero
   const territories = user.stats?.territories || 0;
@@ -58,7 +59,12 @@ const Dashboard = () => {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1 className="cyber-glitch" data-text="TERRITORY RUN">TERRITORY RUN</h1>
+        <div className="left-controls">
+            <button className="back-btn" onClick={() => navigate('/home')}>
+                <ArrowLeft size={24} />
+            </button>
+            <h1 className="cyber-glitch" data-text="TERRITORY RUN">TERRITORY RUN</h1>
+        </div>
         <div className="user-profile">
             <button 
               className={`camera-toggle ${isCameraLocked ? 'locked' : ''}`}
@@ -70,7 +76,6 @@ const Dashboard = () => {
             <div className="avatar" style={{ background: user.color || 'var(--neon-blue)' }}></div>
             <div className="user-info">
                 <span>{user.name || user.username || "Agent"}</span>
-                <button className="logout-btn" onClick={logout}>LOGOUT</button>
             </div>
         </div>
       </header>
@@ -84,7 +89,7 @@ const Dashboard = () => {
         <StatsCard 
             label="Territories" 
             value={territories} 
-            icon={Map} 
+            icon={MapIcon} 
         />
         <StatsCard 
             label="Distance" 
@@ -109,26 +114,7 @@ const Dashboard = () => {
             )}
         </ul>
         
-        {!showReclaimButton && !isSimulating && (
-            <button 
-              className="sim-btn" 
-              onClick={() => {
-                try {
-                  startInvasionSimulation();
-                } catch(e) {
-                  console.error("Simulation failed:", e);
-                }
-              }}
-            >
-              🔴 TEST INVASION
-            </button>
-        )}
-        
-        {showReclaimButton && (
-            <button className="reclaim-btn" onClick={handleReclaim}>
-                ⚔️ START RECLAIM
-            </button>
-        )}
+
 
         {/* DEVELOPER DEBUG BUTTON */}
         <button 
@@ -140,36 +126,9 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {isSimulating && simulationSubtitle && (
-          <div className="mission-subtitle-overlay">
-              <div className="subtitle-content">
-                  <div className="subtitle-pulse"></div>
-                  <p>{simulationSubtitle}</p>
-              </div>
-          </div>
-      )}
 
-      {showMissionAlert && (
-          <div className="mission-alert-overlay">
-              <div className="mission-content">
-                  <div className="mission-header">
-                      <AlertTriangle size={24} color="var(--neon-pink)" />
-                      <h2>MISSION CRITICAL</h2>
-                  </div>
-                  <p>Territory Compromised! Follow the Red Path to Reclaim.</p>
-                  <button className="mission-btn" onClick={() => setShowMissionAlert(false)}>DISMISS</button>
-              </div>
-          </div>
-      )}
 
-      {/* Mobile Floating Action Button (FAB) */}
-      {!currentRun.isActive && !isSimulating && (
-        <div className="mobile-fab-container">
-          <button className="fab-btn" onClick={startContinuousRun}>
-            🏃 START TRACKING
-          </button>
-        </div>
-      )}
+
 
       <div className="scanner-line"></div>
 
@@ -225,6 +184,32 @@ const Dashboard = () => {
             pointer-events: auto;
         }
         
+        .left-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn {
+            background: rgba(0,0,0,0.8);
+            border: 1px solid var(--neon-blue);
+            color: var(--neon-blue);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
         .user-profile {
             display: flex;
             align-items: center;
@@ -264,33 +249,7 @@ const Dashboard = () => {
             z-index: 9999; /* Ensure it stays on top */
         }
         
-        .sim-btn {
-            margin-top: 15px; /* Increased margin */
-            width: 100%;
-            background: rgba(255, 0, 85, 0.2);
-            border: 1px solid var(--neon-pink);
-            color: var(--neon-pink);
-            padding: 15px; /* Better touch target */
-            font-size: 1rem; /* Easier to read */
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-            z-index: 9999;
-        }
 
-        .reclaim-btn {
-            width: 100%;
-            background: var(--neon-blue);
-            color: black;
-            padding: 18px; /* Massive touch target */
-            font-size: 1.1rem;
-            font-weight: 900;
-            border: none;
-            box-shadow: 0 0 20px var(--neon-blue);
-            animation: pulse-reclaim 1.5s infinite;
-            z-index: 9999;
-        }
 
         .camera-toggle {
             background: none;
@@ -380,95 +339,7 @@ const Dashboard = () => {
           }
         }
 
-        .mobile-fab-container {
-          display: none;
-          position: fixed;
-          bottom: 25px;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 2000;
-          width: 80%;
-          max-width: 300px;
-          pointer-events: auto;
-        }
 
-        .fab-btn {
-          width: 100%;
-          background: var(--neon-blue);
-          color: black;
-          border: none;
-          padding: 15px 25px;
-          font-weight: 900;
-          font-family: inherit;
-          border-radius: 30px;
-          box-shadow: 0 0 20px var(--neon-blue);
-          cursor: pointer;
-          font-size: 1rem;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .fab-btn:hover {
-          transform: scale(1.05);
-          box-shadow: 0 0 30px var(--neon-blue);
-        }
-
-        @media (max-width: 768px) {
-          .mobile-fab-container {
-            display: block;
-          }
-        }
-
-        .mission-subtitle-overlay {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 600px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid var(--neon-pink);
-            border-radius: 12px;
-            padding: 15px 25px;
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.3);
-            z-index: 10001;
-            pointer-events: auto;
-            animation: slide-up 0.5s ease-out;
-        }
-
-        .subtitle-content {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .subtitle-content p {
-            margin: 0;
-            color: var(--neon-pink);
-            font-size: 1rem;
-            font-weight: 900;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .subtitle-pulse {
-            width: 12px;
-            height: 12px;
-            background: var(--neon-pink);
-            border-radius: 50%;
-            box-shadow: 0 0 10px var(--neon-pink);
-            animation: pulse-pink 1s infinite alternate;
-        }
-
-        @keyframes slide-up {
-            from { transform: translate(-50%, 100px); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-
-        @keyframes pulse-pink {
-            from { transform: scale(1); filter: brightness(1); }
-            to { transform: scale(1.3); filter: brightness(1.5); }
-        }
       `}</style>
     </div>
   );

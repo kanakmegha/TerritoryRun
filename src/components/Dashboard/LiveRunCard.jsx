@@ -1,81 +1,33 @@
 import { useGameStore } from '../../hooks/useGameStore';
-import { Navigation, Activity, MapPin } from 'lucide-react';
+import { Navigation, Activity, X } from 'lucide-react';
 
 const LiveRunCard = () => {
-    const { currentRun, startContinuousRun, stopContinuousRun } = useGameStore();
+    const { currentRun, stopTracking, activeGameMode } = useGameStore();
 
-    if (!currentRun.isActive) {
-        return (
-            <div className="live-run-card">
-                <button className="start-tracking-btn" onClick={startContinuousRun}>
-                    <Navigation size={20} />
-                    START TRACKING
-                </button>
-
-                <style>{`
-                    .live-run-card {
-                        position: fixed;
-                        bottom: 20px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2000;
-                        padding: 15px 30px;
-                        background: rgba(0, 0, 0, 0.85);
-                        border: 2px solid var(--neon-blue);
-                        border-radius: 12px;
-                        backdrop-filter: blur(10px);
-                        box-shadow: 0 0 20px rgba(0, 255, 234, 0.3);
-                        width: auto;
-                        min-width: 250px;
-                        max-width: 90%;
-                    }
-
-                    .start-tracking-btn {
-                        display: flex;
-                        align-items: center;
-                        gap: 10px;
-                        background: var(--neon-blue);
-                        color: black;
-                        border: none;
-                        padding: 12px 24px;
-                        font-size: 1rem;
-                        font-weight: bold;
-                        cursor: pointer;
-                        border-radius: 8px;
-                        font-family: inherit;
-                        box-shadow: 0 0 15px var(--neon-blue);
-                        transition: all 0.2s;
-                    }
-
-                    .start-tracking-btn:hover {
-                        transform: scale(1.05);
-                        box-shadow: 0 0 25px var(--neon-blue);
-                    }
-
-                    .start-tracking-btn:active {
-                        transform: scale(0.98);
-                    }
-                `}</style>
-            </div>
-        );
+    if (!currentRun.isActive || !activeGameMode) {
+        return null; // Hidden when not tracking
     }
 
     const formatDistance = (meters) => {
-        if (meters < 50) return `${(meters * 100).toFixed(0)} cm`;
-        if (meters < 500) return `${meters.toFixed(1)} m`;
+        if (meters < 1000) return `${meters.toFixed(0)} m`;
         return `${(meters / 1000).toFixed(2)} km`;
     };
 
     const distanceDisplay = formatDistance(currentRun.distance || 0);
     const paceMinKm = currentRun.pace > 0 ? currentRun.pace.toFixed(1) : '--';
+    const modeLabel = activeGameMode === 'claim' ? 'CLAIM SECURE' : 'END ATTACK';
 
     return (
         <div className="live-run-card active">
+            <div className="run-header">
+                <h3>{activeGameMode === 'claim' ? 'MAPPING TERRITORY VECTOR' : 'ATTACK PROTOCOL ACTIVE'}</h3>
+            </div>
+            
             <div className="run-stats">
                 <div className="stat-item">
                     <Activity size={16} className="stat-icon" />
                     <div className="stat-content">
-                        <div className="stat-label">Distance</div>
+                        <div className="stat-label">Vector Length</div>
                         <div className="stat-value">{distanceDisplay}</div>
                     </div>
                 </div>
@@ -85,24 +37,14 @@ const LiveRunCard = () => {
                 <div className="stat-item">
                     <Navigation size={16} className="stat-icon" />
                     <div className="stat-content">
-                        <div className="stat-label">Pace</div>
+                        <div className="stat-label">Velocity</div>
                         <div className="stat-value">{paceMinKm} min/km</div>
-                    </div>
-                </div>
-
-                <div className="stat-divider"></div>
-
-                <div className="stat-item">
-                    <MapPin size={16} className="stat-icon" />
-                    <div className="stat-content">
-                        <div className="stat-label">Tiles</div>
-                        <div className="stat-value">{currentRun.tilesCaptured}</div>
                     </div>
                 </div>
             </div>
 
-            <button className="stop-tracking-btn" onClick={stopContinuousRun}>
-                STOP RUN
+            <button className="stop-tracking-btn" onClick={stopTracking}>
+                <X size={18} /> {modeLabel}
             </button>
 
             <style>{`
@@ -120,34 +62,52 @@ const LiveRunCard = () => {
                     box-shadow: 0 0 30px rgba(0, 255, 234, 0.5);
                     width: 90%;
                     max-width: 450px;
-                    min-width: unset;
                 }
 
-                .live-run-card.active {
-                    border-color: var(--neon-blue);
-                    animation: card-pulse 2s ease-in-out infinite;
+                .run-header {
+                    text-align: center;
+                    margin-bottom: 15px;
+                    border-bottom: 1px solid rgba(0, 255, 234, 0.3);
+                    padding-bottom: 10px;
                 }
+                
+                .run-header h3 {
+                    margin: 0;
+                    font-size: 0.9rem;
+                    color: var(--neon-pink);
+                    letter-spacing: 2px;
+                    animation: blink 2s infinite;
+                }
+                
+                /* Dynamic color based on mode */
+                ${activeGameMode === 'claim' ? `
+                    .live-run-card { border-color: var(--neon-blue); box-shadow: 0 0 30px rgba(0, 255, 234, 0.3); }
+                    .run-header h3 { color: var(--neon-blue); }
+                    .stat-icon { color: var(--neon-blue); }
+                    .stat-value { color: var(--neon-blue); }
+                ` : `
+                    .live-run-card { border-color: var(--neon-pink); box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); }
+                    .run-header h3 { color: var(--neon-pink); }
+                    .stat-icon { color: var(--neon-pink); }
+                    .stat-value { color: var(--neon-pink); }
+                `}
 
-                @keyframes card-pulse {
-                    0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 234, 0.3); }
-                    50% { box-shadow: 0 0 40px rgba(0, 255, 234, 0.6); }
+                @keyframes blink {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.5; }
                 }
 
                 .run-stats {
                     display: flex;
-                    justify-content: space-between;
+                    justify-content: space-around;
                     align-items: center;
-                    margin-bottom: 15px;
+                    margin-bottom: 20px;
                 }
 
                 .stat-item {
                     display: flex;
                     align-items: center;
-                    gap: 8px;
-                }
-
-                .stat-icon {
-                    color: var(--neon-blue);
+                    gap: 10px;
                 }
 
                 .stat-content {
@@ -162,56 +122,41 @@ const LiveRunCard = () => {
                 }
 
                 .stat-value {
-                    font-size: 1.1rem;
+                    font-size: 1.2rem;
                     font-weight: bold;
-                    color: var(--neon-blue);
                 }
 
                 .stat-divider {
                     width: 1px;
                     height: 40px;
-                    background: rgba(0, 255, 234, 0.2);
+                    background: rgba(255, 255, 255, 0.2);
                 }
 
                 .stop-tracking-btn {
                     width: 100%;
-                    background: rgba(255, 0, 85, 0.2);
-                    color: var(--neon-pink);
-                    border: 2px solid var(--neon-pink);
-                    padding: 10px;
-                    font-size: 0.9rem;
+                    background: rgba(255, 255, 255, 0.1);
+                    color: white;
+                    border: 1px solid rgba(255,255,255,0.3);
+                    padding: 12px;
+                    font-size: 1rem;
                     font-weight: bold;
                     cursor: pointer;
                     border-radius: 8px;
                     font-family: inherit;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 10px;
                     transition: all 0.2s;
                 }
 
                 .stop-tracking-btn:hover {
-                    background: rgba(255, 0, 85, 0.4);
-                    box-shadow: 0 0 15px var(--neon-pink);
+                    background: white;
+                    color: black;
                 }
 
                 .stop-tracking-btn:active {
                     transform: scale(0.98);
-                }
-
-                @media (max-width: 768px) {
-                    /* Hide the default card button on mobile since we have the FAB in Dashboard */
-                    .live-run-card:not(.active) {
-                        display: none;
-                    }
-                    .live-run-card.active {
-                        bottom: 10px;
-                        padding: 15px;
-                    }
-                    .run-stats {
-                        flex-direction: column;
-                        gap: 10px;
-                    }
-                    .stat-divider {
-                        display: none;
-                    }
                 }
             `}</style>
         </div>

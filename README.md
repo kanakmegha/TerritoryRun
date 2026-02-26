@@ -1,16 +1,47 @@
-# React + Vite
+# TerritoryRun 🏃
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A cyberpunk-themed GPS territory control game, now available as both a web application and a React Native mobile application.
 
-Currently, two official plugins are available:
+## 🚀 Getting Started (Mobile App)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The mobile application is built with Expo and React Native, utilizing `@rnmapbox/maps` for native mapping and H3 core indexing.
 
-## React Compiler
+### Prerequisites for iOS (Mac only)
+- Xcode installed from the Mac App Store
+- CocoaPods (`sudo gem install cocoapods` if needed)
+- An active backend server (`npm run server` in the root folder)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. Configure the API
+Ensure the mobile app connects to your local machine:
+1. Find your machine's local IP (e.g., `192.168.0.x`).
+2. Update `mobile/src/hooks/useGameStore.js` `API_URL` to match this IP. 
+*(It is currently set to `http://192.168.0.106:5001` based on your last environment)*.
 
-## Expanding the ESLint configuration
+### 2. Build and Run the App
+Because the app uses Mapbox (which includes custom native code), you **cannot** use the standard "Expo Go" app. You must build a custom development client:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+cd mobile
+npm install
+
+# Build & Run on iOS Simulator (Requires Xcode)
+npx expo run:ios
+
+# Build & Run on Android Emulator (Requires Android Studio)
+npx expo run:android
+```
+
+Once the app compiles and installs on your device/simulator, you can leave the Expo Metro bundler running (`npx expo start`) for fast refresh and UI updates.
+
+---
+
+## 💻 Web App (Legacy/Desktop)
+
+1. Start the Node backend in one terminal: 
+   ```bash
+   npm run server
+   ```
+2. Start the Vite React app in another terminal:
+   ```bash
+   npm run dev
+   ```

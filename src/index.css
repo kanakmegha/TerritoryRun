@@ -1,3 +1,15 @@
+/* Force the player marker to stay on top of Mapbox tiles */
+.leaflet-marker-pane {
+  z-index: 600 !important;
+}
+
+/* The Blue Dot "Pulse" and "Glide" effect */
+.player-marker {
+  transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Smooth Glide */
+  filter: drop-shadow(0 0 10px #00f2ff);
+}
+
 :root {
   --neon-blue: #00f3ff;
   --neon-pink: #ff00ff;

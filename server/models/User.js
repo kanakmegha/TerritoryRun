@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   color: { type: String, default: '#00f3ff' },
+  team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
   stats: {
     distance: { type: Number, default: 0 },
     territories: { type: Number, default: 0 }
