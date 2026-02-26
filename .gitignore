@@ -1,3 +1,11 @@
+# Dependencies
+node_modules
+/dist
+/dist-ssr
+/build
+.expo
+.metro-health-check*
+
 # Logs
 logs
 *.log
@@ -7,19 +15,39 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment
 .env
+.env.local
+.env.*.local
+*.env
+!ios/.xcode.env
+!mobile/ios/.xcode.env
 
-# Editor directories and files
+# Editor / IDE
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.classpath
+.project
+.settings
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.pem
+
+# Deployment
+.vercel
+.output
+
+# Misc
+coverage/
+.turbo/
+.next/
+web-build/
+*.tsbuildinfo

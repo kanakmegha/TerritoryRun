@@ -25,16 +25,43 @@ const VectorMap = React.memo(({ minimap = false }) => {
         longitudeDelta: 0.01,
     };
 
-    // Force re-center if camera is locked and position changes
+    // Force re-center logic
     useEffect(() => {
         if (isCameraLocked && lastPosition && lastPosition.lat && mapRef.current && mapReady && layoutReady) {
             
-            // Avoid unnecessary animation if movement is tiny (< 2m)
+            // 1. If we haven't animated the initial view yet, snap to current location
+            if (!hasAnimatedInitial) {
+                const snapToInitial = () => {
+                    if (!mapRef.current) return;
+                    try {
+                        mapRef.current.animateToRegion({
+                            latitude: Number(lastPosition.lat),
+                            longitude: Number(lastPosition.lng),
+                            latitudeDelta: minimap ? 0.005 : 0.01,
+                            longitudeDelta: minimap ? 0.005 : 0.01,
+                        }, 500);
+                        setHasAnimatedInitial(true);
+                        prevPosRef.current = lastPosition;
+                    } catch (e) {
+                        console.warn("[VectorMap] Initial snap error:", e.message);
+                    }
+                };
+                
+                const timer = setTimeout(snapToInitial, 1000);
+                return () => clearTimeout(timer);
+            }
+
+            // 2. If a run IS NOT active, do not animate camera movement (stay static)
+            if (!currentRun?.isActive) {
+                return;
+            }
+
+            // 3. If a run IS active, only animate if movement is significant (> 5m)
             if (prevPosRef.current) {
                 const latDiff = Math.abs(prevPosRef.current.lat - lastPosition.lat);
                 const lngDiff = Math.abs(prevPosRef.current.lng - lastPosition.lng);
-                // Approx 2m in degrees
-                if (latDiff < 0.00002 && lngDiff < 0.00002 && hasAnimatedInitial) return;
+                // Approx 5m in degrees
+                if (latDiff < 0.00005 && lngDiff < 0.00005) return;
             }
 
             const runAnimation = () => {
@@ -43,24 +70,18 @@ const VectorMap = React.memo(({ minimap = false }) => {
                     mapRef.current.animateToRegion({
                         latitude: Number(lastPosition.lat),
                         longitude: Number(lastPosition.lng),
-                        latitudeDelta: 0.005,
-                        longitudeDelta: 0.005,
+                        latitudeDelta: minimap ? 0.005 : 0.01,
+                        longitudeDelta: minimap ? 0.005 : 0.01,
                     }, 1000);
-                    if (!hasAnimatedInitial) setHasAnimatedInitial(true);
                     prevPosRef.current = lastPosition;
                 } catch (e) {
-                    console.warn("[VectorMap] Animation error:", e.message);
+                    console.warn("[VectorMap] Run animation error:", e.message);
                 }
             };
 
-            if (!hasAnimatedInitial) {
-                const timer = setTimeout(runAnimation, 1000);
-                return () => clearTimeout(timer);
-            } else {
-                runAnimation();
-            }
+            runAnimation();
         }
-    }, [lastPosition, isCameraLocked, mapReady, layoutReady]);
+    }, [lastPosition, isCameraLocked, mapReady, layoutReady, currentRun?.isActive]);
 
     const handleRequestPermissions = async () => {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -148,8 +169,8 @@ const VectorMap = React.memo(({ minimap = false }) => {
                     );
                 })}
 
-                {/* Render active run path */}
-                {currentRun?.path?.length > 1 && (
+                {/* Render active run path (only if active) */}
+                {currentRun?.isActive && currentRun?.path?.length > 1 && (
                     <Polyline
                         coordinates={currentRun.path
                             .map(p => {

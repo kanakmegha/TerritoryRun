@@ -21,11 +21,13 @@ app.use(cors({
 app.use(express.json());
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/game', gameRoutes);
+// We mount them under both /api and / to handle different deployment environments
+// (Local dev usually expects /api, Vercel might strip it)
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/game', '/game'], gameRoutes);
 
 // Health check for Vercel deployment verification
-app.get('/', (req, res) => res.send('Territory Run API Operational'));
+app.get(['/', '/api'], (req, res) => res.send('Territory Run API Operational'));
 
 // 2. STABLE DB CONNECTION: Use the URI from Vercel Environment Variables
 if (process.env.MONGODB_URI) {
@@ -38,7 +40,7 @@ if (process.env.MONGODB_URI) {
 export default app;
 
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT} (Accessible on local network)`);
     });
 }

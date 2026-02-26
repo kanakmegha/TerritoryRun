@@ -6,12 +6,10 @@ import { Trophy, Map as MapIcon, Activity, AlertTriangle, Lock, Unlock } from 'l
 
 const Dashboard = () => {
   const { 
-    user, alerts, logout, isSimulating,
-    startInvasionSimulation, showReclaimButton,
-    showMissionAlert, setShowMissionAlert, startContinuousRun,
-    currentRun, addAlert, simulateStep,
+    user, alerts, logout,
+    startContinuousRun,
+    currentRun, addAlert,
     isCameraLocked, setCameraLocked,
-    simulationSubtitle
   } = useGameStore();
   
   if (!user || !user.stats) {
@@ -71,8 +69,8 @@ const Dashboard = () => {
         <StatsCard label="Distance" value={formatDistanceValue(territories * 1)} icon={Activity} />
       </View>
 
-      {/* FAB (Only if not running and not simulating) */}
-      {!currentRun.isActive && !isSimulating && (
+      {/* FAB (Only if not running) */}
+      {!currentRun.isActive && (
         <View style={styles.fabContainer}>
           <TouchableOpacity style={styles.fabBtn} onPress={startContinuousRun}>
             <Text style={styles.fabText}>🏃 RUN PROTOCOL</Text>
@@ -100,47 +98,8 @@ const Dashboard = () => {
                     ))
                 )}
             </ScrollView>
-            
-            {!showReclaimButton && !isSimulating && (
-                <TouchableOpacity style={styles.simBtn} onPress={startInvasionSimulation}>
-                    <Text style={styles.simBtnText}>🔴 TEST INVASION</Text>
-                </TouchableOpacity>
-            )}
-            
-            {showReclaimButton && (
-                <TouchableOpacity style={styles.reclaimBtn} onPress={handleReclaim}>
-                    <Text style={styles.reclaimBtnText}>⚔️ START RECLAIM</Text>
-                </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.debugBtn} onPress={simulateStep}>
-                <Text style={styles.debugBtnText}>🛠️ SIMULATE STEP</Text>
-            </TouchableOpacity>
         </View>
       </View>
-
-      {/* Overlays */}
-      {isSimulating && simulationSubtitle ? (
-          <View style={styles.subtitleOverlay}>
-              <View style={styles.subtitlePulse} />
-              <Text style={styles.subtitleText}>{simulationSubtitle}</Text>
-          </View>
-      ) : null}
-
-      {showMissionAlert && (
-          <View style={styles.missionOverlay}>
-              <View style={styles.missionContent}>
-                  <View style={styles.missionHeader}>
-                      <AlertTriangle size={24} color="#ff00ff" />
-                      <Text style={styles.missionTitle}>MISSION CRITICAL</Text>
-                  </View>
-                  <Text style={styles.missionDesc}>Territory Compromised! Follow Path to Reclaim.</Text>
-                  <TouchableOpacity style={styles.missionBtn} onPress={() => setShowMissionAlert(false)}>
-                      <Text style={styles.missionBtnText}>DISMISS</Text>
-                  </TouchableOpacity>
-              </View>
-          </View>
-      )}
     </View>
   );
 };

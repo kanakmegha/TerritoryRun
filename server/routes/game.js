@@ -1,6 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import Territory from '../models/Territory.js';
+import Team from '../models/Team.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -61,20 +62,53 @@ router.post('/claim', auth, async (req, res) => {
 });
 
 // Fetch all active Territories
-router.get('/map', async (req, res) => {
+router.get('/territories', async (req, res) => {
     try {
-        // Viewport bounding box filtering can be added here if payload gets too large
-        
-        // 7 Day Decay limit (prevent db clutter)
         const cutOff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        
         const territories = await Territory.find({ 
             timestamp: { $gt: cutOff } 
-        }).limit(1000).select('-__v'); // Send down clean JSON
+        }).limit(1000).select('-__v');
 
-        res.json(territories);
+        res.json({ territories });
     } catch (error) {
         console.error("Map fetch error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// Fetch Global Leaderboard
+router.get('/leaderboard', async (req, res) => {
+    try {
+        const leaders = await User.find()
+            .sort({ 'stats.territories': -1, 'stats.distance': -1 })
+            .limit(10)
+            .select('username color stats');
+        
+        const formattedLeaderboard = leaders.map((l, index) => ({
+            id: l._id,
+            name: l.username,
+            rank: index + 1,
+            score: l.stats.territories * 10, // Mock score calculation
+            area: `${(l.stats.distance / 1000).toFixed(1)} km²`
+        }));
+
+        res.json({ success: true, leaderboard: formattedLeaderboard });
+    } catch (error) {
+        console.error("Leaderboard fetch error:", error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+});
+
+// Fetch Active Teams
+router.get('/teams', async (req, res) => {
+    try {
+        const teams = await Team.find()
+            .populate('members', 'username')
+            .limit(20);
+        
+        res.json({ success: true, teams });
+    } catch (error) {
+        console.error("Teams fetch error:", error);
         res.status(500).json({ message: 'Server Error' });
     }
 });

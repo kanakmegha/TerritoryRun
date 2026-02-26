@@ -8,15 +8,9 @@ import { checkIfOnRoad, resetRoadValidatorCache } from '../utils/roadValidator';
 
 const GameContext = createContext();
 
-// Replace this with your Vercel deployment URL after you deploy
-// Example: 'https://territory-run-api.vercel.app'
-const VERCEL_URL = ''; 
+const VERCEL_URL = 'https://territory-run-eight.vercel.app';
+const API_URL = VERCEL_URL;
 
-const API_URL = __DEV__ 
-  ? 'http://localhost:5001' 
-  : (VERCEL_URL || 'http://localhost:5001');
-
-console.log(`[API] Connecting to: ${API_URL}`);
 axios.defaults.baseURL = API_URL;
 
 export const GameProvider = ({ children }) => {
@@ -157,6 +151,16 @@ export const GameProvider = ({ children }) => {
     }
   };
 
+  const checkRoadStatus = async () => {
+    if (!lastPosition) return;
+    try {
+        const { isOnRoad } = await checkIfOnRoad(lastPosition.lat, lastPosition.lng);
+        setIsOffRoad(!isOnRoad);
+    } catch (e) {
+        console.warn("Manual road check failed", e);
+    }
+  };
+
   useEffect(() => {
     return () => {
         if (locationSubscriberRef.current) {
@@ -213,8 +217,8 @@ export const GameProvider = ({ children }) => {
         if (token) {
             try {
                 const userRes = await axios.get('/api/auth/me');
-                if (userRes.data.success) {
-                    setUser(userRes.data.user);
+                if (userRes.data) {
+                    setUser(userRes.data);
                 }
             } catch (authErr) {
                 console.warn("User refresh failed", authErr.message);
@@ -336,6 +340,9 @@ export const GameProvider = ({ children }) => {
       try {
           if (!user) return;
 
+          // Always update lastPosition even if run is not active
+          setLastPosition({ lat, lng });
+
           if (!currentRun.isActive) return;
 
           // ── Road Validation ──────────────────────────────────────────
@@ -350,6 +357,8 @@ export const GameProvider = ({ children }) => {
           // ─────────────────────────────────────────────────────────────
 
       setCurrentRun(prev => {
+          if (!prev.isActive) return prev;
+
           let distanceMoved = 0;
           const prevPos = prev.path[prev.path.length - 1];
 
@@ -382,6 +391,10 @@ export const GameProvider = ({ children }) => {
 
           const newTotal = parseFloat(prev.distance || 0) + validDistance;
           
+          // ONLY add point to path if we have moved at least 2 meters OR it's the first point
+          // This prevents "fake movement" jitter when standing still
+          const shouldAddPoint = prev.path.length === 0 || distanceMoved > 2;
+
           if (activeGameMode === 'claim' && newTotal > 100 && prev.path.length > 5) {
               const startPos = prev.path[0];
               const distToStart = calculateDistance(startPos[0], startPos[1], lat, lng);
@@ -428,7 +441,7 @@ export const GameProvider = ({ children }) => {
 
           return {
               ...prev,
-              path: [...prev.path, [lat, lng]],
+              path: shouldAddPoint ? [...prev.path, [lat, lng]] : prev.path,
               distance: newTotal,
               pace: currentPace,
               lastUpdateTime: nowTime
@@ -458,7 +471,7 @@ export const GameProvider = ({ children }) => {
         suggestedRoutes, setSuggestedRoutes,
         selectedRoute, setSelectedRoute,
         isLoopClosable, setIsLoopClosable,
-        isOffRoad,
+        isOffRoad, checkRoadStatus,
         leaderboard, refreshLeaderboard,
         teams, refreshTeams
     }}>

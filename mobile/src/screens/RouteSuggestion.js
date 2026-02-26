@@ -6,8 +6,18 @@ import axios from 'axios';
 import VectorMap from '../components/Map/VectorMap';
 
 const RouteSuggestion = ({ navigation }) => {
-    const { targetDistance, setTargetDistance, suggestedRoutes, setSuggestedRoutes, startTracking, lastPosition } = useGameStore();
+    const { 
+        targetDistance, setTargetDistance, 
+        suggestedRoutes, setSuggestedRoutes, 
+        startTracking, lastPosition,
+        isOffRoad, checkRoadStatus
+    } = useGameStore();
+
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        checkRoadStatus();
+    }, []);
 
     useEffect(() => {
         const fetchRoutes = async () => {
