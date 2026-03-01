@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
+  clerkId: { type: String, unique: true, sparse: true }, // Clerk identifier
+  password: { type: String }, // Optional for Clerk users
   color: { type: String, default: '#00f3ff' },
   team: { type: mongoose.Schema.Types.ObjectId, ref: 'Team' },
   stats: {
@@ -14,15 +15,16 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Hash password before saving
+// Hash password before saving (only if present)
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
 // Method to check password
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false;
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

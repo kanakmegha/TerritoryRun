@@ -73,9 +73,9 @@ export const checkIfOnRoad = async (lat, lng) => {
                 }
             }
         } else {
-            // If geocoding fails (no results, ZERO_RESULTS), assume on-road
-            // to avoid false negatives in areas with poor mapping coverage.
-            isOnRoad = true;
+            // Strictly enforce road visibility. 
+            // If Google can't find a route/street at this point, it's off-road.
+            isOnRoad = false;
         }
 
         // Cache the result

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Platform } from 'react-native';
 
-const LOCAL_IP = '192.168.68.120'; 
+const LOCAL_IP = '192.168.68.113'; 
 const VERCEL_URL = ''; 
 
 const getBaseURL = () => {

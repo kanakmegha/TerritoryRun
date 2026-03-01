@@ -1,9 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { useGameStore } from '../../hooks/useGameStore';
 
 const EmpireTab = () => {
     const { user } = useGameStore();
+
+    // Helper to format large numbers or handle missing stats
+    const stats = user?.stats || {};
+    
+    // Calculate display values
+    const totalArea = stats.distance ? (stats.distance / 1000).toFixed(2) : "0.00";
+    const totalTerritories = stats.territories || 0;
+    const userLevel = Math.floor(totalTerritories / 5) + 1; // Basic level logic
 
     return (
         <ScrollView style={styles.container}>
@@ -13,28 +21,34 @@ const EmpireTab = () => {
             </View>
 
             <View style={styles.profileCard}>
-                <View style={styles.avatarPlaceholder} />
+                {/* Use Clerk's Profile Image if available, otherwise placeholder */}
+                {user?.imageUrl ? (
+                    <Image source={{ uri: user.imageUrl }} style={styles.avatar} />
+                ) : (
+                    <View style={[styles.avatarPlaceholder, { backgroundColor: user?.color || '#333' }]} />
+                )}
+                
                 <View style={styles.profileInfo}>
-                    <Text style={styles.username}>{user?.username || 'Agent'}</Text>
-                    <Text style={styles.levelText}>Level 12 - Territory Baron</Text>
+                    <Text style={styles.username}>{user?.username || user?.firstName || 'Agent'}</Text>
+                    <Text style={styles.levelText}>Level {userLevel} - Territory Explorer</Text>
                 </View>
             </View>
 
             <View style={styles.grid}>
                 <View style={styles.gridItem}>
-                    <Text style={styles.gridValue}>16.7</Text>
-                    <Text style={styles.gridLabel}>Total Area (km²)</Text>
+                    <Text style={styles.gridValue}>{totalArea}</Text>
+                    <Text style={styles.gridLabel}>Total Distance (km)</Text>
                 </View>
                 <View style={styles.gridItem}>
-                    <Text style={styles.gridValue}>42</Text>
-                    <Text style={styles.gridLabel}>Strength [STR]</Text>
+                    <Text style={styles.gridValue}>{totalTerritories}</Text>
+                    <Text style={styles.gridLabel}>Territories Owned</Text>
                 </View>
                 <View style={styles.gridItem}>
-                    <Text style={styles.gridValue}>18</Text>
+                    <Text style={styles.gridValue}>{stats.conquests || 0}</Text>
                     <Text style={styles.gridLabel}>Conquests (Wins)</Text>
                 </View>
                 <View style={styles.gridItem}>
-                    <Text style={styles.gridValue}>3</Text>
+                    <Text style={styles.gridValue}>{stats.defenses || 0}</Text>
                     <Text style={styles.gridLabel}>Defenses (Held)</Text>
                 </View>
             </View>
@@ -69,12 +83,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 20,
+        borderLeftWidth: 4,
+        borderLeftColor: '#FFB800', // You can set this to user.color
+    },
+    avatar: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        marginRight: 15,
     },
     avatarPlaceholder: {
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: '#333',
         marginRight: 15,
     },
     profileInfo: {

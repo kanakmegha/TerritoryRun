@@ -36,7 +36,8 @@
           "locationAlwaysPermission": "Allow Territory Run to use your location even when the app is in the background.",
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

@@ -1,93 +1,41 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { clerkAuth } from '../middleware/clerkAuth.js';
 
 const router = express.Router();
 
-// Middleware to verify token inside auth routes
-const auth = (req, res, next) => {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) return res.status(401).json({ message: 'No protocol token found' });
-    
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.userId;
-        next();
-    } catch (e) {
-        res.status(401).json({ message: 'Invalid token' });
-    }
-};
-
-// Get current user profile
-router.get('/me', auth, async (req, res) => {
-    try {
-        const user = await User.findById(req.user).select('-password');
-        if (!user) return res.status(404).json({ message: 'User not found' });
-        res.json(user);
-    } catch (error) {
-        res.status(500).json({ message: 'Server error retrieving profile' });
-    }
-});
-
-// Register
-router.post('/register', async (req, res) => {
+// --- THE CORE PROFILE SYNC ---
+// This is the route that populates your Profile and Empire tabs
+router.get("/profile", clerkAuth, async (req, res) => {
   try {
-    const { username, email, password, color } = req.body;
-    
-    // Check if user exists
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
+    const user = req.user;
 
-    const user = new User({ username, email, password, color });
-    await user.save();
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-
-    res.status(201).json({ 
-      token, 
-      user: { 
-        id: user._id, 
-        username: user.username, 
-        color: user.color, 
-        stats: user.stats 
-      } 
+    res.json({
+      user: {
+        id: user.clerkId,                // important
+        username: user.username,
+        email: user.email,
+        imageUrl: `https://api.dicebear.com/7.x/bottts/png?seed=${user.clerkId}`,
+        color: "#00f3ff",
+        stats: user.stats || {
+          distance: 0,
+          territories: 0,
+          conquests: 0,
+          defenses: 0
+        }
+      }
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+
+  } catch (err) {
+    console.error("PROFILE ERROR:", err);
+    res.status(500).json({ message: "Failed to fetch profile" });
   }
 });
+// Redirect old 'me' requests to the new profile sync
+router.get('/me', clerkAuth, (req, res) => res.redirect('/api/auth/profile'));
 
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-
-    res.json({ 
-      token, 
-      user: { 
-        id: user._id, 
-        username: user.username, 
-        color: user.color, 
-        stats: user.stats 
-      } 
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
-});
+// Explicitly block old login/register routes now that we use Clerk
+router.post('/login', (req, res) => res.status(410).json({ message: 'Legacy Login Disabled. Use Clerk.' }));
+router.post('/register', (req, res) => res.status(410).json({ message: 'Legacy Register Disabled. Use Clerk.' }));
 
 export default router;

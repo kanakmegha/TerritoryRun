@@ -1,12 +1,13 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Target, Map as MapIcon, Shield, Trophy, Users } from 'lucide-react-native';
+import { Target, Map as MapIcon, Shield, Trophy, Users, User } from 'lucide-react-native';
 
 import MissionTab from './tabs/MissionTab';
 import MapTab from './tabs/MapTab';
 import EmpireTab from './tabs/EmpireTab';
 import LeaderboardTab from './tabs/LeaderboardTab';
-import TeamsTab from './tabs/TeamsTab';
+//import TeamsTab from './tabs/TeamsTab';
+import ProfileTab from './tabs/ProfileTab';
 
 const Tab = createBottomTabNavigator();
 
@@ -44,15 +45,7 @@ const CommandCenter = () => {
                     )
                 }}
             />
-            <Tab.Screen 
-                name="Empire" 
-                component={EmpireTab} 
-                options={{
-                    tabBarIcon: ({ color, size }) => (
-                        <Shield color={color} size={size} />
-                    )
-                }}
-            />
+            
             <Tab.Screen 
                 name="Leaderboard" 
                 component={LeaderboardTab} 
@@ -62,12 +55,30 @@ const CommandCenter = () => {
                     )
                 }}
             />
-            <Tab.Screen 
+            {/* <Tab.Screen 
                 name="Teams" 
                 component={TeamsTab} 
                 options={{
                     tabBarIcon: ({ color, size }) => (
                         <Users color={color} size={size} />
+                    )
+                }}
+            /> */}
+            <Tab.Screen 
+                name="Profile" 
+                component={ProfileTab} 
+                options={{
+                    tabBarIcon: ({ color, size }) => (
+                        <User color={color} size={size} />
+                    )
+                }}
+            />
+            <Tab.Screen 
+                name="Empire" 
+                component={EmpireTab} 
+                options={{
+                    tabBarIcon: ({ color, size }) => (
+                        <Shield color={color} size={size} />
                     )
                 }}
             />

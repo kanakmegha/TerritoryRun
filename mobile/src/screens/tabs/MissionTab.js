@@ -18,14 +18,14 @@ const MissionTab = ({ navigation }) => {
                 <View style={styles.statRow}>
                     <View>
                         <Text style={styles.statLabel}>Total Area Controlled</Text>
-                        <Text style={styles.statValue}>16.7 <Text style={styles.unit}>km²</Text></Text>
+                        <Text style={styles.statValue}>{(user?.stats?.distance || 0).toFixed(1)} <Text style={styles.unit}>km²</Text></Text>
                     </View>
                     <Shield color="#FFB800" size={32} />
                 </View>
                 <View style={styles.subStatsRow}>
                     <View>
                         <Text style={styles.subStatLabel}>Total Strength</Text>
-                        <Text style={styles.subStatValue}>11</Text>
+                        <Text style={styles.subStatValue}>{user?.stats?.territories || 0}</Text>
                     </View>
                     <View>
                         <Text style={styles.subStatLabel}>Active Threats</Text>

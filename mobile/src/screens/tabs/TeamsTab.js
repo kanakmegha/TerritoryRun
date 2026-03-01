@@ -1,4 +1,4 @@
-import React from 'react';
+/* import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Users, Shield, Plus, TrendingUp } from 'lucide-react-native';
 
@@ -150,3 +150,4 @@ const styles = StyleSheet.create({
 });
 
 export default TeamsTab;
+ */

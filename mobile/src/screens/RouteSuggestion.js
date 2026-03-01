@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../hooks/useGameStore';
 import { MapPin, ChevronLeft } from 'lucide-react-native';
-import axios from 'axios';
+import api from '../utils/api';
 import VectorMap from '../components/Map/VectorMap';
 
 const RouteSuggestion = ({ navigation }) => {
@@ -23,7 +23,7 @@ const RouteSuggestion = ({ navigation }) => {
         const fetchRoutes = async () => {
             setLoading(true);
             try {
-                const res = await axios.post('/api/game/suggest', {
+                const res = await api.post('/api/game/suggest', {
                     targetDistance,
                     lat: lastPosition?.lat || 0,
                     lng: lastPosition?.lng || 0
@@ -92,7 +92,7 @@ const RouteSuggestion = ({ navigation }) => {
                     </View>
                     <View style={styles.loopInfo}>
                         <Text style={styles.loopName}>{route.name}</Text>
-                        <Text style={styles.loopMeta}>{route.type} • {route.distance} km</Text>
+                        <Text style={styles.loopMeta}>{route.type} • {route.distance} km{route.area ? ` • ${route.area} km² Area` : ''}</Text>
                     </View>
                 </TouchableOpacity>
             ))}
