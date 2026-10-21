@@ -1,72 +1,76 @@
-import { verifyToken } from "@clerk/backend";
+import process from 'node:process';
+import { verifyToken as clerkVerifyToken } from "@clerk/backend";
 import User from "../models/User.js";
 
-export const clerkAuth = async (req, res, next) => {
-  try {
-    // 1. Read Authorization header
-    const authHeader = req.headers.authorization;
+// Resolve Clerk signing keys lazily per request. The `clerkAuth` middleware is
+// instantiated at module load time, but dotenv loads CLERK_SECRET_KEY later in
+// server/index.js (after the import chain that builds this middleware). Reading
+// process.env here keeps verification working regardless of import order and
+// never logs the token or the secret key.
+function resolveSigningKeys({ secretKey, jwtKey }) {
+  return {
+    secretKey: secretKey ?? process.env.CLERK_SECRET_KEY,
+    jwtKey: jwtKey ?? process.env.CLERK_JWT_KEY,
+  };
+}
 
-    if (!authHeader) {
-      console.log("[AUTH] No Authorization header");
-      return res.status(401).json({ message: "No auth header" });
+export function createClerkAuth({
+  verifyToken = clerkVerifyToken,
+  UserModel = User,
+  secretKey,
+  jwtKey,
+} = {}) {
+  return async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const match = typeof authHeader === 'string' && authHeader.match(/^Bearer\s+(\S+)$/i);
+    if (!match) {
+      console.log('[Auth] missing or malformed Authorization header');
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const token = authHeader.replace("Bearer ", "");
+    const token = match[1];
+    const { secretKey: resolvedSecretKey, jwtKey: resolvedJwtKey } = resolveSigningKeys({ secretKey, jwtKey });
 
-    // 2. Verify Clerk token
-    const payload = await verifyToken(token, {
-      secretKey: process.env.CLERK_SECRET_KEY,
-    });
+    let payload;
+    try {
+      payload = await verifyToken(token, { secretKey: resolvedSecretKey, jwtKey: resolvedJwtKey });
+    } catch (err) {
+      const reason = err?.reason || err?.name || 'verification-error';
+      console.warn('[Auth] token verification failed', { reason });
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
 
     const clerkId = payload.sub;
-    const email = payload.email;
-    const username = payload.username;
+    const email = payload.email || '';
+    const username = payload.username || `user_${clerkId.slice(-5)}`;
 
-    console.log("[AUTH] Clerk ID:", clerkId);
-    console.log("[AUTH] Email:", email);
-    console.log("[AUTH] Username:", username);
-
-    // 3. Try to find user already linked to Clerk
-    let user = await User.findOne({ clerkId });
-
-    // 4. If not found → try matching by email (ACCOUNT LINKING STEP)
-    if (!user && email) {
-      console.log("[AUTH] No clerkId match. Trying email match...");
-      user = await User.findOne({ email });
-
-      if (user) {
-        console.log("[AUTH] Existing user found. Linking Clerk account...");
-        user.clerkId = clerkId;
+    try {
+      let user = await UserModel.findOne({ clerkId });
+      if (!user && email) {
+        user = await UserModel.findOne({ email });
+        if (user) {
+          user.clerkId = clerkId;
+          await user.save();
+        }
+      }
+      if (!user) {
+        user = new UserModel({
+          clerkId,
+          username,
+          email: email || `user_${clerkId.slice(-5)}@clerk.local`,
+          color: '#00FA9A',
+          stats: { distance: 0, territories: 0, conquests: 0, defenses: 0 },
+        });
         await user.save();
       }
+
+      req.user = user;
+      return next();
+    } catch (err) {
+      console.warn('[Auth] downstream profile lookup failed', { message: err?.message });
+      return res.status(500).json({ message: 'Failed to fetch profile' });
     }
+  };
+}
 
-    // 5. If still no user → create new one
-    if (!user) {
-      console.log("[AUTH] Creating brand new user from Clerk login");
-
-      user = new User({
-        clerkId,
-        username: username || `Agent_${clerkId.slice(-5)}`,
-        email: email || `user_${clerkId.slice(-5)}@clerk.local`,
-        color: "#00FA9A",
-        stats: {
-          distance: 0,
-          territories: 0,
-          conquests: 0,
-          defenses: 0,
-        },
-      });
-
-      await user.save();
-    }
-
-    // 6. Attach to request
-    req.user = user;
-
-    next();
-  } catch (err) {
-    console.log("AUTH ERROR:", err.message);
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-};
+export const clerkAuth = createClerkAuth();

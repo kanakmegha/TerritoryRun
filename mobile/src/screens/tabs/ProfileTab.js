@@ -4,7 +4,7 @@ import { useGameStore } from '../../hooks/useGameStore';
 import { User, LogOut, Shield, Award, MapPin, Zap, Target } from 'lucide-react-native';
 
 const ProfileTab = () => {
-    const { user, logout } = useGameStore();
+    const { user, logout, indoorTestMode, toggleIndoorTestMode: setIndoorTestMode, testDistanceMeters, setTestDistance, simulatedLocation, toggleSimulatedLocation: setSimulatedLocation } = useGameStore();
 
     // Calculate level based on territories
     const userLevel = Math.floor((user?.stats?.territories || 0) / 5) + 1;
@@ -69,6 +69,39 @@ const ProfileTab = () => {
                 </View>
             </View>
 
+            {/* --- Development-only indoor test mode settings --- */}
+            {/* eslint-disable-next-line no-undef */}
+            {__DEV__ && (
+                <View style={styles.devSection}>
+                    <View style={styles.devHeader}>
+                        <Text style={styles.devTitle}>🏠 INDOOR TEST MODE (DEV ONLY)</Text>
+                        <Text style={styles.devStatus}>{indoorTestMode ? 'ACTIVE' : 'INACTIVE'}</Text>
+                    </View>
+                    <View style={styles.devRow}>
+                        <Text style={styles.devLabel}>Test mode:</Text>
+                        <TouchableOpacity style={[styles.devToggle, indoorTestMode && styles.devToggleOn]} onPress={() => setIndoorTestMode(!indoorTestMode)}>
+                            <Text style={styles.devToggleText}>{indoorTestMode ? 'ON' : 'OFF'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <View style={styles.devRow}>
+                        <Text style={styles.devLabel}>Target distance:</Text>
+                        <Text style={styles.devValue}>{testDistanceMeters} m</Text>
+                    </View>
+                    <TouchableOpacity style={styles.devButton} onPress={() => setTestDistance(testDistanceMeters === 20 ? 10 : testDistanceMeters === 10 ? 30 : 20)}>
+                        <Text style={styles.devButtonText}>Cycle: 10 / 20 / 30 m</Text>
+                    </TouchableOpacity>
+                    <View style={styles.devRow}>
+                        <Text style={styles.devLabel}>Simulated GPS:</Text>
+                        <TouchableOpacity style={[styles.devToggle, simulatedLocation && styles.devToggleOn]} onPress={() => setSimulatedLocation(!simulatedLocation)}>
+                            <Text style={styles.devToggleText}>{simulatedLocation ? 'ON' : 'OFF'}</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.devWarning}>
+                        Test activities never award real territory or affect stats. Server-enforced.
+                    </Text>
+                </View>
+            )}
+
             <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
                 <LogOut color="#ff3333" size={20} />
                 <Text style={styles.logoutText}>TERMINATE SESSION</Text>
@@ -106,6 +139,20 @@ const styles = StyleSheet.create({
     battleValue: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
     logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, borderWidth: 1, borderColor: '#ff3333', backgroundColor: 'rgba(255, 51, 51, 0.05)', marginBottom: 30 },
     logoutText: { color: '#ff3333', fontWeight: 'bold', letterSpacing: 2, marginLeft: 10 },
+    // Development-only indoor test mode settings
+    devSection: { backgroundColor: '#0a0a0a', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#FFB800', marginBottom: 30 },
+    devHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+    devTitle: { color: '#FFB800', fontSize: 14, fontWeight: 'bold', letterSpacing: 1 },
+    devStatus: { color: '#00f3ff', fontSize: 12, fontWeight: 'bold', backgroundColor: 'rgba(0,243,255,0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: '#00f3ff' },
+    devRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+    devLabel: { color: '#888', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
+    devValue: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+    devToggle: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: '#333', backgroundColor: 'rgba(255,255,255,0.03)' },
+    devToggleOn: { borderColor: '#00f3ff', backgroundColor: 'rgba(0,243,255,0.1)' },
+    devToggleText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+    devButton: { paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: '#333', backgroundColor: 'rgba(255,255,255,0.03)', alignItems: 'center', marginTop: 6 },
+    devButtonText: { color: '#00f3ff', fontSize: 12, fontWeight: 'bold' },
+    devWarning: { color: '#888', fontSize: 10, textAlign: 'center', marginTop: 10, fontStyle: 'italic' },
     footer: { textAlign: 'center', color: '#222', fontSize: 10, marginBottom: 40 }
 });
 

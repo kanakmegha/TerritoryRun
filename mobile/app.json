@@ -22,12 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": false,
-      "package": "com.kanakmegha.territoryrun",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyA5s3Vt45Ix0mHN19g59ozhWtpsRQ-_uOQ"
-        }
-      }
+      "package": "com.kanakmegha.territoryrun"
     },
     "plugins": [
       [
@@ -37,10 +32,16 @@
           "isAndroidForegroundServiceEnabled": true
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "89f2ad41-fccb-406c-aa5f-edb78d0e38c0"
+      }
     }
   }
 }

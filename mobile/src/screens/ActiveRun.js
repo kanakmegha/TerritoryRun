@@ -3,31 +3,59 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useGameStore } from '../hooks/useGameStore';
 import VectorMap from '../components/Map/VectorMap';
 import { AlertCircle, Square, Shield, Swords } from 'lucide-react-native';
+import { normalizeSuggestedRoute } from '../utils/routeSuggestions';
+import { formatDistance } from '../utils/distanceFormat';
 
 const ActiveRun = ({ navigation }) => {
     const { 
         currentRun, stopTracking, isLoopClosable, alerts,
-        activeGameMode, attackTarget 
+        activeGameMode, attackTarget, indoorTestMode, testDistanceMeters,
+        simulatedLocation, gpsAccuracy, isSubmitting
     } = useGameStore();
+    const selectedRoute = currentRun?.selectedRoute;
+    const routeForMap = selectedRoute?.coordinates?.length
+        ? selectedRoute
+        : normalizeSuggestedRoute(selectedRoute);
 
     const handleStop = async () => {
-        await stopTracking();
-        navigation.navigate('ConquestSummary');
+        const saved = await stopTracking();
+        if (saved) navigation.navigate('ConquestSummary');
     };
+
+    const distanceMeters = currentRun.distance || 0;
+    const { value: distanceValue, unit: distanceUnit } = formatDistance(distanceMeters);
 
     return (
         <View style={styles.container}>
             <View style={styles.mapContainer}>
-                <VectorMap />
+                <VectorMap suggestedRoute={routeForMap} />
             </View>
 
             <View style={styles.hudOverlay}>
+                {/* Indoor test mode banner */}
+                {indoorTestMode && (
+                    <View style={styles.testModeBanner}>
+                        <Text style={styles.testModeText}>
+                            {simulatedLocation ? '🧪 SIMULATED' : '🏠 INDOOR TEST'}
+                            {' — '}{testDistanceMeters} m target • GPS accuracy: {gpsAccuracy ? gpsAccuracy.toFixed(0) + ' m' : '—'}
+                        </Text>
+                    </View>
+                )}
+                {!indoorTestMode && gpsAccuracy && gpsAccuracy > 15 && (
+                    <View style={styles.testModeBanner}>
+                        <Text style={styles.testModeText}>
+                            ⚠️ POOR GPS ACCURACY — {gpsAccuracy.toFixed(0)} m
+                            {' • Indoor distance may be unreliable'}
+                        </Text>
+                    </View>
+                )}
+
                 <View style={styles.metricsRow}>
                     <View style={styles.metricCard}>
                         <Text style={styles.metricLabel}>Distance</Text>
                         <Text style={styles.metricValue}>
-                            {(currentRun.distance / 1000).toFixed(2)}
-                            <Text style={styles.unit}> km</Text>
+                            {distanceValue}
+                            <Text style={styles.unit}>{distanceUnit}</Text>
                         </Text>
                     </View>
                     <View style={styles.metricCard}>
@@ -79,7 +107,11 @@ const ActiveRun = ({ navigation }) => {
 
                 {/* Primary Interaction Area */}
                 <View style={styles.interactionArea}>
-                    {isLoopClosable ? (
+                    {isSubmitting ? (
+                        <TouchableOpacity style={[styles.stopBtn, styles.submittingBtn]} disabled>
+                            <Text style={styles.stopBtnText}>Finishing…</Text>
+                        </TouchableOpacity>
+                    ) : isLoopClosable ? (
                         <TouchableOpacity style={[styles.stopBtn, styles.closableBtn]} onPress={handleStop}>
                             <Text style={styles.closableBtnText}>Loop Closable! Tap to Claim.</Text>
                         </TouchableOpacity>
@@ -142,6 +174,22 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#666',
     },
+    testModeBanner: {
+        backgroundColor: 'rgba(255, 184, 0, 0.2)',
+        borderColor: '#FFB800',
+        borderWidth: 1,
+        borderRadius: 8,
+        padding: 10,
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    testModeText: {
+        color: '#FFB800',
+        fontSize: 11,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        letterSpacing: 1,
+    },
     alertBox: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -177,6 +225,10 @@ const styles = StyleSheet.create({
     },
     closableBtn: {
         backgroundColor: '#00ffea',
+    },
+    submittingBtn: {
+        backgroundColor: '#666666',
+        opacity: 0.6,
     },
     closableBtnText: {
         color: '#000',

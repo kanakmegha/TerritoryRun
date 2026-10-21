@@ -1,13 +1,20 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useGameStore } from '../hooks/useGameStore';
 import { Home, Share2 } from 'lucide-react-native';
+import { formatDistance } from '../utils/distanceFormat';
 
 const ConquestSummary = ({ navigation }) => {
-    const { user, currentRun } = useGameStore();
+    const { user, currentRun, retryActivitySubmission, indoorTestMode } = useGameStore();
+    const isTestActivity = indoorTestMode || currentRun?.outcome?.isTest === true;
+    const distanceMeters = currentRun?.distance || 0;
+    const { value: distanceValue, unit: distanceUnit } = formatDistance(distanceMeters);
+    const resultTitle = currentRun?.submissionStatus === 'processed' ? 'NEW TERRITORY ACQUIRED'
+        : currentRun?.submissionStatus === 'rejected' ? 'RUN NOT CLAIMED'
+        : ['pending', 'uploading'].includes(currentRun?.submissionStatus) ? 'UPLOAD PENDING' : 'RESULT UNAVAILABLE';
     
     // Flip Animation Value (0 to 180 degrees)
-    const flipAnim = useRef(new Animated.Value(0)).current;
+    const [flipAnim] = useState(() => new Animated.Value(0));
 
     useEffect(() => {
         // Trigger flip animation after a short delay for dramatic effect
@@ -53,31 +60,47 @@ const ConquestSummary = ({ navigation }) => {
 
                 {/* Back of Card (After Flip) */}
                 <Animated.View style={[styles.card, styles.cardBack, backAnimatedStyle]}>
-                    <Text style={styles.territoryTitle}>NEW TERRITORY ACQUIRED</Text>
+                    <Text style={styles.territoryTitle}>{resultTitle}{isTestActivity ? ' (TEST)' : ''}</Text>
+                    {isTestActivity && (
+                        <Text style={styles.testActivityNote}>Indoor test activity — no real territory awarded.</Text>
+                    )}
+                    {currentRun?.submissionStatus === 'pending' && (
+                        <Text style={styles.loadingText}>Your recorded GPS trace is saved on this device.</Text>
+                    )}
+                    {currentRun?.submissionStatus === 'rejected' && (
+                        <Text style={styles.loadingText}>{currentRun?.outcome?.message || 'This activity did not meet the claim rules.'}</Text>
+                    )}
                     
                     <View style={styles.statsGrid}>
                         <View style={styles.statBox}>
-                            <Text style={styles.statValue}>{(currentRun?.distance / 1000)?.toFixed(2) || '0.00'}</Text>
-                            <Text style={styles.statLabel}>KM RUN</Text>
+                            <Text style={styles.statValue}>{distanceValue}</Text>
+                            <Text style={styles.statLabel}>{distanceUnit}</Text>
                         </View>
                         <View style={styles.statBox}>
                             <Text style={styles.statValue}>{currentRun?.pace?.toFixed(1) || '0.0'}</Text>
                             <Text style={styles.statLabel}>AVG PACE</Text>
                         </View>
                         <View style={styles.statBox}>
-                            <Text style={styles.statValue}>1</Text>
-                            <Text style={styles.statLabel}>STRENGTH</Text>
+                            <Text style={styles.statValue}>{currentRun?.outcome?.strength_count || 0}</Text>
+                            <Text style={styles.statLabel}>TERRITORY</Text>
                         </View>
                     </View>
 
-                    <View style={styles.ownerTag}>
-                        <View style={[styles.colorDot, { backgroundColor: user?.color || '#00f3ff' }]} />
-                        <Text style={styles.ownerText}>{user?.username || 'Agent'}'s Domain</Text>
-                    </View>
+                    {currentRun?.submissionStatus === 'processed' && (
+                        <View style={styles.ownerTag}>
+                            <View style={[styles.colorDot, { backgroundColor: user?.color || '#00f3ff' }]} />
+                            <Text style={styles.ownerText}>{user?.username || 'Agent'}'s Domain</Text>
+                        </View>
+                    )}
                 </Animated.View>
             </View>
 
             <View style={styles.actionRow}>
+                {currentRun?.submissionStatus === 'pending' && (
+                    <TouchableOpacity style={styles.actionBtn} onPress={retryActivitySubmission}>
+                        <Text style={styles.actionBtnText}>Retry Upload</Text>
+                    </TouchableOpacity>
+                )}
                 <TouchableOpacity 
                     style={styles.actionBtn}
                     onPress={() => navigation.navigate('CommandCenter')}
@@ -147,6 +170,14 @@ const styles = StyleSheet.create({
         color: '#888',
         fontSize: 16,
         letterSpacing: 2,
+    },
+    testActivityNote: {
+        color: '#FFB800',
+        fontSize: 11,
+        textAlign: 'center',
+        marginBottom: 20,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
     territoryTitle: {
         color: '#fff',

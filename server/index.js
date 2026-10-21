@@ -1,45 +1,27 @@
-import express from 'express';
+import process from 'node:process';
 import mongoose from 'mongoose';
-import cors from 'cors';
 import dotenv from 'dotenv';
-import authRoutes from './routes/auth.js';
-import gameRoutes from './routes/game.js';
+import app from './app.js';
 
 dotenv.config();
-
-const app = express();
 
 // Startup check for Clerk credentials
 
 if (!process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY) {
     console.warn('⚠️ WARNING: EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY is missing from .env.');
 }
+// Development-only indoor test mode status
+const devTestMode = process.env.NODE_ENV !== 'production' && process.env.DEV_INDOOR_TEST_MODE === 'true';
+if (devTestMode) {
+    console.log('🏠 INDOOR TEST MODE: enabled (short-distance validation, no real territory awards)');
+    console.log(`   minDistance=${process.env.DEV_TEST_MIN_DISTANCE_METERS || 20}m minArea=${process.env.DEV_TEST_MIN_AREA_SQM || 1}m²`);
+} else if (process.env.NODE_ENV === 'production' && process.env.DEV_INDOOR_TEST_MODE) {
+    console.log('🏠 INDOOR TEST MODE: ignored (production environment)');
+} else {
+    console.log('🏠 INDOOR TEST MODE: disabled');
+}
 // Vercel handles the port, but we keep 5001 for local dev
 const PORT = process.env.PORT || 5001;
-
-// 1. IMPROVED CORS: Allow all origins so your mobile phone can connect to the deployed API
-app.use(cors({
-    origin: '*', 
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-app.use(express.json());
-
-// Request logger
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
-
-// Routes
-// We mount them under both /api and / to handle different deployment environments
-// (Local dev usually expects /api, Vercel might strip it)
-app.use(['/api/auth', '/auth'], authRoutes);
-app.use(['/api/game', '/game'], gameRoutes);
-
-// Health check for Vercel deployment verification
-app.get(['/', '/api'], (req, res) => res.send('Territory Run API Operational'));
 
 // 2. STABLE DB CONNECTION: Use the URI from Vercel Environment Variables
 if (process.env.MONGODB_URI) {

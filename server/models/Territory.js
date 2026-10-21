@@ -9,6 +9,7 @@ const territorySchema = new mongoose.Schema({
     perimeter_m: { type: Number, required: true }, // Perimeter in meters
     strength_count: { type: Number, default: 1 }, // Multiplier for defense
     strength: { type: Number, required: true }, // area_sqm * strength_count
+    claimActivity: { type: mongoose.Schema.Types.ObjectId, ref: 'Activity' },
     path_nodes: { type: [[Number]], required: true }, // Raw point array [lng, lat] for easy client rendering
     boundary: {
         type: {
@@ -27,5 +28,6 @@ const territorySchema = new mongoose.Schema({
 territorySchema.index({ boundary: '2dsphere' });
 // Compound index for fast user lookups
 territorySchema.index({ owner: 1, timestamp: -1 });
+territorySchema.index({ claimActivity: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Territory', territorySchema);

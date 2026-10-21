@@ -8,11 +8,11 @@ const Dashboard = () => {
   const { 
     user, alerts, logout,
     startContinuousRun,
-    currentRun, addAlert,
+    currentRun, addAlert, retryActivitySubmission,
     isCameraLocked, setCameraLocked,
   } = useGameStore();
   
-  if (!user || !user.stats) {
+  if (!user) {
     return (
       <View style={styles.loadingOverlay}>
         <ActivityIndicator size="large" color="#00f3ff" style={{ marginBottom: 20 }} />
@@ -20,6 +20,8 @@ const Dashboard = () => {
       </View>
     );
   }
+
+  const stats = user.stats || { distance: 0, territories: 0, conquests: 0, defenses: 0 };
 
   const handleReclaim = () => {
       try {
@@ -69,6 +71,12 @@ const Dashboard = () => {
         <StatsCard label="Distance" value={formatDistanceValue(territories * 1)} icon={Activity} />
       </View>
 
+      {currentRun.submissionStatus === 'pending' && (
+        <TouchableOpacity style={styles.pendingUpload} onPress={retryActivitySubmission}>
+          <Text style={styles.pendingUploadText}>Activity upload pending · Tap to retry</Text>
+        </TouchableOpacity>
+      )}
+
       {/* FAB (Only if not running) */}
       {!currentRun.isActive && (
         <View style={styles.fabContainer}>
@@ -116,6 +124,19 @@ const styles = StyleSheet.create({
     color: '#00f3ff',
     fontSize: 14,
     letterSpacing: 2,
+  },
+  pendingUpload: {
+    backgroundColor: '#332800',
+    borderColor: '#FFB800',
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  pendingUploadText: {
+    color: '#FFB800',
+    textAlign: 'center',
+    fontWeight: 'bold',
   },
   dashboardContainer: {
     ...StyleSheet.absoluteFillObject,

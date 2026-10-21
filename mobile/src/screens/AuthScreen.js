@@ -1,19 +1,25 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useSignIn, useSignUp } from '@clerk/clerk-expo';
+import {
+  SIGN_IN_STATES,
+  executeSignInFlow,
+  executeVerificationFlow,
+  parseClerkAuthError,
+} from '../utils/authFlow.js';
 
 export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
-  
+
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.overlay}>
-          {isLogin ? 
-            <Login onSwitch={() => setIsLogin(false)} /> : 
+          {isLogin ?
+            <Login onSwitch={() => setIsLogin(false)} /> :
             <Signup onSwitch={() => setIsLogin(true)} />
           }
         </View>
@@ -22,69 +28,190 @@ export default function AuthScreen() {
   );
 }
 
+const logAuthStage = (stageNum, details) => {
+  console.log(`[AuthTrace] Stage ${stageNum}:`, details);
+};
+
 const Login = ({ onSwitch }) => {
   const { signIn, setActive, isLoaded } = useSignIn();
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [signInState, setSignInState] = useState(SIGN_IN_STATES.IDLE);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [factorInfo, setFactorInfo] = useState(null);
+  const [error, setError] = useState(null);
+
+  const isSigningIn = signInState === SIGN_IN_STATES.SIGNING_IN;
 
   const handleSubmit = async () => {
-    if (!isLoaded) return;
-    setLoading(true);
-    setError('');
-    try {
-      const completeSignIn = await signIn.create({
-        identifier: username,
-        password,
-      });
-      await setActive({ session: completeSignIn.createdSessionId });
-    } catch (err) {
-      console.error(JSON.stringify(err, null, 2));
-      setError(err.errors?.[0]?.message || 'Login failed');
-    } finally {
-      setLoading(false);
+    if (!isLoaded || isSigningIn) return;
+
+    setError(null);
+    setSignInState(SIGN_IN_STATES.SIGNING_IN);
+
+    const result = await executeSignInFlow({
+      signIn,
+      setActive,
+      identifier,
+      password,
+      onStage: logAuthStage,
+    });
+
+    if (result.success) {
+      setSignInState(SIGN_IN_STATES.SIGNED_IN);
+      return;
     }
+
+    if (result.state === SIGN_IN_STATES.AWAITING_VERIFICATION) {
+      setFactorInfo(result);
+      setSignInState(SIGN_IN_STATES.AWAITING_VERIFICATION);
+      return;
+    }
+
+    // Recoverable error
+    setError(result.error?.message || 'Login failed. Please try again.');
+    setSignInState(SIGN_IN_STATES.RECOVERABLE_ERROR);
   };
+
+  const handleVerifyFactor = async () => {
+    if (!isLoaded || isSigningIn) return;
+
+    setError(null);
+    setSignInState(SIGN_IN_STATES.SIGNING_IN);
+
+    const result = await executeVerificationFlow({
+      signIn,
+      setActive,
+      code: verificationCode,
+      factorType: factorInfo?.factorType,
+      strategy: factorInfo?.strategy,
+      onStage: logAuthStage,
+    });
+
+    if (result.success) {
+      setSignInState(SIGN_IN_STATES.SIGNED_IN);
+      return;
+    }
+
+    if (result.state === SIGN_IN_STATES.AWAITING_VERIFICATION) {
+      setError(result.error?.message || 'Verification failed. Please try again.');
+      setSignInState(SIGN_IN_STATES.AWAITING_VERIFICATION);
+      return;
+    }
+
+    setError(result.error?.message || 'Verification failed. Please try again.');
+    setSignInState(SIGN_IN_STATES.RECOVERABLE_ERROR);
+  };
+
+  const handleCancelVerification = () => {
+    setSignInState(SIGN_IN_STATES.IDLE);
+    setVerificationCode('');
+    setFactorInfo(null);
+    setError(null);
+  };
+
+  if (signInState === SIGN_IN_STATES.AWAITING_VERIFICATION) {
+    return (
+      <View style={styles.authContainer}>
+        <Text style={styles.title}>SECURITY VERIFICATION</Text>
+        <Text style={styles.infoText}>
+          {factorInfo?.message || 'Enter your authentication code to proceed.'}
+        </Text>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Authentication Code</Text>
+          <TextInput
+            style={styles.input}
+            value={verificationCode}
+            onChangeText={setVerificationCode}
+            keyboardType="number-pad"
+            autoCapitalize="none"
+            placeholder="123456"
+            placeholderTextColor="#444"
+            editable={!isSigningIn}
+          />
+        </View>
+
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.cyberBtn, isSigningIn && styles.btnDisabled]}
+          onPress={handleVerifyFactor}
+          disabled={isSigningIn}
+        >
+          {isSigningIn ? (
+            <ActivityIndicator color="#00f3ff" />
+          ) : (
+            <Text style={styles.btnText}>CONFIRM CODE</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={handleCancelVerification} style={styles.switchWrapper}>
+          <Text style={styles.switchText}>
+            Wrong Channel? <Text style={styles.switchLink}>Back to Access Protocol</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.authContainer}>
       <Text style={styles.title}>SYSTEM ACCESS</Text>
-      
+
       <View style={styles.formGroup}>
-          <Text style={styles.label}>Codename</Text>
-          <TextInput 
-              style={styles.input}
-              value={username} 
-              onChangeText={setUsername} 
-              autoCapitalize="none"
-              placeholderTextColor="#444"
-              placeholder="ghost_runner"
-          />
+        <Text style={styles.label}>Email or username</Text>
+        <TextInput
+          style={styles.input}
+          value={identifier}
+          onChangeText={setIdentifier}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="email-address"
+          placeholderTextColor="#444"
+          placeholder="name@example.com or username"
+          editable={!isSigningIn}
+        />
       </View>
-      
+
       <View style={styles.formGroup}>
-          <Text style={styles.label}>Security Key</Text>
-          <TextInput 
-              style={styles.input}
-              value={password} 
-              onChangeText={setPassword} 
-              secureTextEntry={true}
-              placeholderTextColor="#444"
-              placeholder="••••••••"
-          />
+        <Text style={styles.label}>Security Key</Text>
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry={true}
+          placeholderTextColor="#444"
+          placeholder="••••••••"
+          editable={!isSigningIn}
+        />
       </View>
-      
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      
-      <TouchableOpacity 
-        style={styles.cyberBtn} 
-        onPress={handleSubmit} 
-        disabled={loading || !isLoaded}
+
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <TouchableOpacity
+        style={[styles.cyberBtn, (isSigningIn || !isLoaded) && styles.btnDisabled]}
+        onPress={handleSubmit}
+        disabled={isSigningIn || !isLoaded}
+        accessibilityRole="button"
       >
-          {loading ? <ActivityIndicator color="#00f3ff" /> : <Text style={styles.btnText}>ESTABLISH CONNECTION</Text>}
+        {isSigningIn ? (
+          <ActivityIndicator color="#00f3ff" />
+        ) : (
+          <Text style={styles.btnText}>
+            {signInState === SIGN_IN_STATES.RECOVERABLE_ERROR ? 'RETRY CONNECTION' : 'ESTABLISH CONNECTION'}
+          </Text>
+        )}
       </TouchableOpacity>
-      
+
       <TouchableOpacity onPress={onSwitch} style={styles.switchWrapper}>
         <Text style={styles.switchText}>
           Unauthorized Signal? <Text style={styles.switchLink}>Initialize New Protocol</Text>
@@ -98,138 +225,156 @@ const Signup = ({ onSwitch }) => {
   const { isLoaded, signUp, setActive } = useSignUp();
   const [step, setStep] = useState('input'); // 'input' | 'verify'
   const [formData, setFormData] = useState({
-      username: '',
-      email: '',
-      password: '',
+    username: '',
+    email: '',
+    password: '',
   });
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || loading) return;
     setLoading(true);
     setError('');
     try {
       await signUp.create({
-        emailAddress: formData.email,
+        emailAddress: formData.email.trim(),
         password: formData.password,
-        username: formData.username,
+        username: formData.username.trim(),
       });
 
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setStep('verify');
     } catch (err) {
-      console.error(JSON.stringify(err, null, 2));
-      setError(err.errors?.[0]?.message || 'Registration failed');
+      const parsed = parseClerkAuthError(err);
+      console.warn('[Signup] create failed', { code: parsed.code, status: parsed.status });
+      setError(parsed.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerify = async () => {
-    if (!isLoaded) return;
+    if (!isLoaded || loading) return;
     setLoading(true);
     setError('');
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({
-        code,
+        code: code.trim(),
       });
-      await setActive({ session: completeSignUp.createdSessionId });
+      if (completeSignUp?.status === 'complete' && completeSignUp.createdSessionId) {
+        await setActive({ session: completeSignUp.createdSessionId });
+      } else {
+        setError('Verification incomplete. Please check the code.');
+      }
     } catch (err) {
-      console.error(JSON.stringify(err, null, 2));
-      setError(err.errors?.[0]?.message || 'Verification failed');
+      const parsed = parseClerkAuthError(err);
+      console.warn('[Signup] verify failed', { code: parsed.code, status: parsed.status });
+      setError(parsed.message || 'Verification failed');
     } finally {
       setLoading(false);
     }
   };
 
   if (step === 'verify') {
-      return (
-        <View style={styles.authContainer}>
-            <Text style={styles.title}>VERIFY UPLINK</Text>
-            <Text style={styles.infoText}>A verification code was sent to {formData.email}.</Text>
-            
-            <View style={styles.formGroup}>
-                <Text style={styles.label}>Authentication Code</Text>
-                <TextInput 
-                    style={styles.input}
-                    value={code} 
-                    onChangeText={setCode} 
-                    keyboardType="number-pad"
-                    placeholder="123456"
-                    placeholderTextColor="#444"
-                />
-            </View>
+    return (
+      <View style={styles.authContainer}>
+        <Text style={styles.title}>VERIFY UPLINK</Text>
+        <Text style={styles.infoText}>A verification code was sent to {formData.email}.</Text>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <TouchableOpacity 
-                style={styles.cyberBtn} 
-                onPress={handleVerify} 
-                disabled={loading}
-            >
-                {loading ? <ActivityIndicator color="#00f3ff" /> : <Text style={styles.btnText}>CONFIRM IDENTITY</Text>}
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={() => setStep('input')} style={styles.switchWrapper}>
-                <Text style={styles.switchText}>Wrong Channel? <Text style={styles.switchLink}>Re-initialize</Text></Text>
-            </TouchableOpacity>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Authentication Code</Text>
+          <TextInput
+            style={styles.input}
+            value={code}
+            onChangeText={setCode}
+            keyboardType="number-pad"
+            placeholder="123456"
+            placeholderTextColor="#444"
+            editable={!loading}
+          />
         </View>
-      );
+
+        {error ? (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.cyberBtn, loading && styles.btnDisabled]}
+          onPress={handleVerify}
+          disabled={loading}
+        >
+          {loading ? <ActivityIndicator color="#00f3ff" /> : <Text style={styles.btnText}>CONFIRM IDENTITY</Text>}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => setStep('input')} style={styles.switchWrapper}>
+          <Text style={styles.switchText}>Wrong Channel? <Text style={styles.switchLink}>Re-initialize</Text></Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
     <View style={styles.authContainer}>
       <Text style={styles.title}>NEW IDENTITY</Text>
-      
+
       <View style={styles.formGroup}>
-          <Text style={styles.label}>Codename</Text>
-          <TextInput 
-              style={styles.input}
-              value={formData.username} 
-              onChangeText={(val) => setFormData({...formData, username: val})} 
-              autoCapitalize="none"
-              placeholder="GhostRunner"
-              placeholderTextColor="#444"
-          />
+        <Text style={styles.label}>Codename</Text>
+        <TextInput
+          style={styles.input}
+          value={formData.username}
+          onChangeText={(val) => setFormData({...formData, username: val})}
+          autoCapitalize="none"
+          placeholder="GhostRunner"
+          placeholderTextColor="#444"
+          editable={!loading}
+        />
       </View>
-      
+
       <View style={styles.formGroup}>
-          <Text style={styles.label}>Email Address</Text>
-          <TextInput 
-              style={styles.input}
-              value={formData.email} 
-              onChangeText={(val) => setFormData({...formData, email: val})} 
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholder="runner@nexus.com"
-              placeholderTextColor="#444"
-          />
+        <Text style={styles.label}>Email Address</Text>
+        <TextInput
+          style={styles.input}
+          value={formData.email}
+          onChangeText={(val) => setFormData({...formData, email: val})}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          placeholder="runner@nexus.com"
+          placeholderTextColor="#444"
+          editable={!loading}
+        />
       </View>
-      
+
       <View style={styles.formGroup}>
-          <Text style={styles.label}>Security Key</Text>
-          <TextInput 
-              style={styles.input}
-              value={formData.password} 
-              onChangeText={(val) => setFormData({...formData, password: val})} 
-              secureTextEntry={true}
-              placeholder="••••••••"
-              placeholderTextColor="#444"
-          />
+        <Text style={styles.label}>Security Key</Text>
+        <TextInput
+          style={styles.input}
+          value={formData.password}
+          onChangeText={(val) => setFormData({...formData, password: val})}
+          secureTextEntry={true}
+          placeholder="••••••••"
+          placeholderTextColor="#444"
+          editable={!loading}
+        />
       </View>
-      
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
-      
-      <TouchableOpacity 
-        style={styles.cyberBtn} 
-        onPress={handleSubmit} 
+
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+
+      <TouchableOpacity
+        style={[styles.cyberBtn, (loading || !isLoaded) && styles.btnDisabled]}
+        onPress={handleSubmit}
         disabled={loading || !isLoaded}
       >
-          {loading ? <ActivityIndicator color="#00f3ff" /> : <Text style={styles.btnText}>INITIALIZE PROTOCOL</Text>}
+        {loading ? <ActivityIndicator color="#00f3ff" /> : <Text style={styles.btnText}>INITIALIZE PROTOCOL</Text>}
       </TouchableOpacity>
-      
+
       <TouchableOpacity onPress={onSwitch} style={styles.switchWrapper}>
         <Text style={styles.switchText}>
           Existing Agent? <Text style={styles.switchLink}>Signal Access System</Text>
@@ -270,11 +415,11 @@ const styles = StyleSheet.create({
   },
   title: {
     color: '#00f3ff',
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
     textAlign: 'center',
     marginBottom: 25,
-    letterSpacing: 4,
+    letterSpacing: 3,
     textShadowColor: 'rgba(0, 243, 255, 0.7)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 15,
@@ -291,11 +436,11 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   infoText: {
-      color: '#aaa',
-      fontSize: 12,
-      textAlign: 'center',
-      marginBottom: 20,
-      fontStyle: 'italic',
+    color: '#aaa',
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 18,
   },
   input: {
     width: '100%',
@@ -321,6 +466,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 5,
   },
+  btnDisabled: {
+    opacity: 0.5,
+  },
   btnText: {
     color: '#00f3ff',
     fontWeight: 'bold',
@@ -340,11 +488,18 @@ const styles = StyleSheet.create({
     color: '#ff00ff',
     fontWeight: 'bold',
   },
+  errorBox: {
+    backgroundColor: 'rgba(255, 51, 51, 0.1)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#ff3333',
+    padding: 10,
+    marginBottom: 10,
+    marginTop: 5,
+  },
   errorText: {
-    color: '#ff3333',
+    color: '#ff6666',
     fontSize: 12,
-    marginTop: 10,
-    textAlign: 'center',
+    lineHeight: 16,
     fontStyle: 'italic',
-  }
+  },
 });

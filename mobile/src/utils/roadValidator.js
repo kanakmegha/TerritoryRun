@@ -13,7 +13,9 @@
  * the user is considered off-road (park, field, building interior, etc.)
  */
 
-const GOOGLE_API_KEY = 'AIzaSyA5s3Vt45Ix0mHN19g59ozhWtpsRQ-_uOQ';
+const GOOGLE_API_KEY =
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY;
 
 // Cache the last result to avoid burning API quota on every GPS tick.
 // We only re-check if the user has moved more than 15m OR every 5 seconds.
@@ -48,6 +50,10 @@ export const checkIfOnRoad = async (lat, lng) => {
         if (dist < MIN_DISTANCE_FOR_RECHECK && timeSinceLast < MIN_TIME_FOR_RECHECK) {
             return { isOnRoad: lastCheckResult.isOnRoad, roadName: lastCheckResult.roadName };
         }
+    }
+
+    if (!GOOGLE_API_KEY) {
+        return { isOnRoad: true, roadName: null };
     }
 
     try {

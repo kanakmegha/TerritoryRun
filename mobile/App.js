@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { GameProvider, useGameStore } from './src/hooks/useGameStore';
+import { GameProvider } from './src/hooks/useGameStore';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ClerkProvider, SignedIn, SignedOut } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth, useSession } from '@clerk/clerk-expo';
 import * as SecureStore from 'expo-secure-store';
 
 import AuthScreen from './src/screens/AuthScreen';
@@ -14,9 +14,10 @@ import RouteSuggestion from './src/screens/RouteSuggestion';
 import ActiveRun from './src/screens/ActiveRun';
 import ConquestSummary from './src/screens/ConquestSummary';
 
-const CLERK_PUBLISHABLE_KEY =process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const CLERK_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY || "pk_test_Zmx5aW5nLXNwaWRlci04OC5jbGVyay5hY2NvdW50cy5kZXYk";
 console.log("🔑 Clerk Key Loaded:", CLERK_PUBLISHABLE_KEY ? "Success" : "MISSING!");
-/* 🔥 CRITICAL FIX — Proper persistent session storage for Clerk */
+
+/* 🔥 Proper persistent session storage for Clerk */
 const tokenCache = {
   async getToken(key) {
     try {
@@ -87,36 +88,46 @@ const errStyles = StyleSheet.create({
 /* ---------------- Navigation ---------------- */
 
 const RootNavigator = () => {
-  const { token, startGpsTracking } = useGameStore();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { session } = useSession();
 
   React.useEffect(() => {
-    if (token) {
-      console.log("GPS starting because token exists");
-      startGpsTracking();
+    if (isLoaded) {
+      console.log('[AuthTrace] Stage 7: Auth state updated', {
+        isLoaded,
+        isSignedIn,
+        sessionStatus: session?.status || null,
+      });
+      if (isSignedIn) {
+        console.log('[AuthTrace] Stage 8: Authenticated navigation mounted');
+      }
     }
-  }, [token]);
+  }, [isLoaded, isSignedIn, session?.status]);
+
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#00f3ff" />
+        <Text style={{ color: '#00f3ff', marginTop: 16, letterSpacing: 1.5, fontWeight: 'bold' }}>
+          INITIALIZING TERRITORY RUN...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main">
-        {() => (
-          <>
-            <SignedIn>
-              <Stack.Navigator screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="CommandCenter" component={CommandCenter} />
-                <Stack.Screen name="RouteSuggestion" component={RouteSuggestion} />
-                <Stack.Screen name="Game" component={GameScreen} />
-                <Stack.Screen name="ActiveRun" component={ActiveRun} />
-                <Stack.Screen name="ConquestSummary" component={ConquestSummary} />
-              </Stack.Navigator>
-            </SignedIn>
-
-            <SignedOut>
-              <AuthScreen />
-            </SignedOut>
-          </>
-        )}
-      </Stack.Screen>
+      {isSignedIn ? (
+        <Stack.Group>
+          <Stack.Screen name="CommandCenter" component={CommandCenter} />
+          <Stack.Screen name="RouteSuggestion" component={RouteSuggestion} />
+          <Stack.Screen name="Game" component={GameScreen} />
+          <Stack.Screen name="ActiveRun" component={ActiveRun} />
+          <Stack.Screen name="ConquestSummary" component={ConquestSummary} />
+        </Stack.Group>
+      ) : (
+        <Stack.Screen name="Auth" component={AuthScreen} />
+      )}
     </Stack.Navigator>
   );
 };
@@ -125,11 +136,11 @@ const RootNavigator = () => {
 
 export default function App() {
   return (
-    <ClerkProvider
-      publishableKey={CLERK_PUBLISHABLE_KEY}
-      tokenCache={tokenCache}
-    >
-      <ErrorBoundary>
+    <ErrorBoundary>
+      <ClerkProvider
+        publishableKey={CLERK_PUBLISHABLE_KEY}
+        tokenCache={tokenCache}
+      >
         <SafeAreaProvider>
           <GameProvider>
             <NavigationContainer>
@@ -137,7 +148,7 @@ export default function App() {
             </NavigationContainer>
           </GameProvider>
         </SafeAreaProvider>
-      </ErrorBoundary>
-    </ClerkProvider>
+      </ClerkProvider>
+    </ErrorBoundary>
   );
 }

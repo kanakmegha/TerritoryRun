@@ -2,14 +2,12 @@ import React, { useRef, useEffect, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import MapView, { PROVIDER_GOOGLE, Marker, Polyline, Polygon } from 'react-native-maps';
 import { useGameStore } from '../../hooks/useGameStore';
-import * as Location from 'expo-location';
 
-const VectorMap = React.memo(({ minimap = false }) => {
+const VectorMap = React.memo(({ minimap = false, suggestedRoute = null }) => {
     const { 
         lastPosition, isCameraLocked,
-        territories, currentRun, activeGameMode,
-        gpsStatus, gpsError, startGpsTracking,
-        isOffRoad
+        territories, currentRun,
+        gpsStatus, startGpsTracking
     } = useGameStore();
 
     const mapRef = useRef(null);
@@ -18,16 +16,29 @@ const VectorMap = React.memo(({ minimap = false }) => {
     const [layoutReady, setLayoutReady] = useState(false);
     const [hasAnimatedInitial, setHasAnimatedInitial] = useState(false);
 
+    useEffect(() => {
+        if (gpsStatus === 'idle') startGpsTracking();
+    }, [gpsStatus, startGpsTracking]);
+
+    useEffect(() => {
+        const coordinates = suggestedRoute?.verified === true ? suggestedRoute.coordinates : null;
+        if (!minimap || !mapRef.current || !mapReady || !layoutReady || !coordinates || coordinates.length < 2) return;
+        mapRef.current.fitToCoordinates(coordinates, {
+            edgePadding: { top: 24, right: 24, bottom: 24, left: 24 },
+            animated: true,
+        });
+    }, [suggestedRoute?.id, suggestedRoute?.verified, suggestedRoute?.coordinates, minimap, mapReady, layoutReady]);
+
     const initialRegion = {
-        latitude: (lastPosition?.lat && !isNaN(lastPosition.lat)) ? lastPosition.lat : 37.7749,
-        longitude: (lastPosition?.lng && !isNaN(lastPosition.lng)) ? lastPosition.lng : -122.4194,
+        latitude: (Number.isFinite(lastPosition?.lat)) ? lastPosition.lat : 37.7749,
+        longitude: (Number.isFinite(lastPosition?.lng)) ? lastPosition.lng : -122.4194,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
     };
 
     // Force re-center logic
     useEffect(() => {
-        if (isCameraLocked && lastPosition && lastPosition.lat && mapRef.current && mapReady && layoutReady) {
+        if (isCameraLocked && lastPosition && Number.isFinite(lastPosition.lat) && mapRef.current && mapReady && layoutReady) {
             
             // 1. If we haven't animated the initial view yet, snap to current location
             if (!hasAnimatedInitial) {
@@ -81,13 +92,10 @@ const VectorMap = React.memo(({ minimap = false }) => {
 
             runAnimation();
         }
-    }, [lastPosition, isCameraLocked, mapReady, layoutReady, currentRun?.isActive]);
+    }, [lastPosition, isCameraLocked, mapReady, layoutReady, hasAnimatedInitial, currentRun?.isActive, minimap]);
 
     const handleRequestPermissions = async () => {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-            startGpsTracking();
-        }
+        await startGpsTracking();
     };
 
     const customMapStyle = [
@@ -141,6 +149,13 @@ const VectorMap = React.memo(({ minimap = false }) => {
                     if (width > 0 && height > 0) setLayoutReady(true);
                 }}
             >
+                {suggestedRoute?.verified === true && suggestedRoute.coordinates?.length >= 2 && (
+                    <Polyline
+                        coordinates={suggestedRoute.coordinates}
+                        strokeColor="#FFB800"
+                        strokeWidth={4}
+                    />
+                )}
                 {/* Render captured loops / territories */}
                 {territories.map((t) => {
                     if (!t.boundary || !t.boundary.coordinates) return null;
@@ -154,7 +169,6 @@ const VectorMap = React.memo(({ minimap = false }) => {
 
                     // Safety: Only append alpha if it looks like a hex color
                     const baseColor = (t.ownerColor && t.ownerColor.startsWith('#')) ? t.ownerColor : '#00f3ff';
-                    const glowColor = baseColor + '33';
                     const fillColor = baseColor + '44';
                     
                     // Note: Avoiding React.Fragment as it can break some MapView implementations on Android
@@ -187,7 +201,7 @@ const VectorMap = React.memo(({ minimap = false }) => {
                 )}
 
                 {/* Manual Player Marker if GPS isn't showing blue dot or for better visibility */}
-                {lastPosition && lastPosition.lat && (
+                {lastPosition && Number.isFinite(lastPosition.lat) && Number.isFinite(lastPosition.lng) && (
                     <Marker
                         key="player_marker"
                         coordinate={{
@@ -207,15 +221,6 @@ const VectorMap = React.memo(({ minimap = false }) => {
                 <Text style={styles.mountVerifyText}>MAP ENGINE ACTIVE</Text>
             </View>
 
-            {/* Off-Road Warning */}
-            {isOffRoad && currentRun?.isActive && (
-                <View style={styles.offRoadOverlay}>
-                    <Text style={styles.offRoadIcon}>🚫</Text>
-                    <Text style={styles.offRoadTitle}>OFF-ROAD</Text>
-                    <Text style={styles.offRoadSubtext}>Return to a road to capture distance</Text>
-                </View>
-            )}
-
             {/* Speed Warning Overlay */}
             {isSpeedExceeded && (
                 <View style={styles.warningOverlay}>
@@ -228,7 +233,6 @@ const VectorMap = React.memo(({ minimap = false }) => {
             {!minimap && (
                 <View style={styles.debugHud}>
                     <Text style={styles.debugText}>GPS: {gpsStatus}</Text>
-                    {gpsError && <Text style={[styles.debugText, {color: '#ff4444'}]}>{gpsError}</Text>}
                     <Text style={styles.debugText}>Lat: {lastPosition?.lat?.toFixed(5) || '?'}</Text>
                     <Text style={styles.debugText}>Lng: {lastPosition?.lng?.toFixed(5) || '?'}</Text>
                     <Text style={styles.debugText}>Territories: {territories.length}</Text>

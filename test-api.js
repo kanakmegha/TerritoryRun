@@ -3,7 +3,7 @@ import axios from 'axios';
 const testRegistration = async () => {
     try {
         console.log("Testing Registration Endpoint directly...");
-        const res = await axios.post('http://localhost:5001/api/auth/register', {
+        const res = await axios.post('baseURL: "http://192.168.68.113:5001/api/auth/register', {
             username: `test_${Date.now()}`,
             email: `test_${Date.now()}@example.com`,
             password: 'password123',
