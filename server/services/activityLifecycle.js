@@ -154,13 +154,13 @@ function createMongoRepository() {
     getOwned: (id, owner) => Activity.findOne({ _id: id, owner }).lean(),
     saveSubmission: (id, owner, hash, samples) => Activity.findOneAndUpdate(
       { _id: id, owner, status: 'recording' },
-      { $set: { submissionHash: hash, samples } },
+      { $set: { submissionHash: hash, samples, status: 'submitted', submittedAt: new Date() } },
       { new: true, runValidators: true },
     ).lean(),
     finishValidation: (id, status, validation, rejection, claimEligibleOverride) => Activity.findOneAndUpdate(
       { _id: id, status: 'submitted' },
       { $set: { serverValidated: true, claimEligible: claimEligibleOverride !== undefined ? claimEligibleOverride : status === 'accepted', validation, rejectionReason: rejection || null,
-        ...(status === 'accepted' ? { status } : {}),
+        status,
         ...(validation?.boundary ? { claimBoundary: validation.boundary } : {}) } },
       { new: true, runValidators: true },
     ).lean(),

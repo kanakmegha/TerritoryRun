@@ -495,7 +495,7 @@ test('route just above 100m minimum is accepted', async () => {
   assert.equal(f.claims, 1);
 });
 
-test('failed submission preserves activity for retry', async () => {
+test('failed submission transitions to rejected and fresh activity can be submitted', async () => {
   const f = fixture();
   await start(f);
   const shortTrace = [
@@ -507,17 +507,16 @@ test('failed submission preserves activity for retry', async () => {
   const rejected = await f.service.submit({ ownerId: OWNER, activityId: ACTIVITY, samples: shortTrace });
   assert.equal(rejected.status, 422);
   assert.equal(f.claims, 0);
-  // Activity remains in recording state after rejection
-  assert.equal(f.records.get(ACTIVITY).status, 'recording');
-  // Retry with valid trace (>100m)
-  const validTrace = [
-    { lat: 40.7484, lng: -73.9857, timestamp: 150000, accuracy: 5 },
-    { lat: 40.7484, lng: -73.9857 + 30 / 111195, timestamp: 151000, accuracy: 5 },
-    { lat: 40.7484 + 30 / 111195, lng: -73.9857 + 30 / 111195, timestamp: 152000, accuracy: 5 },
-    { lat: 40.7484 + 30 / 111195, lng: -73.9857, timestamp: 153000, accuracy: 5 },
-  ];
-  const retry = await f.service.submit({ ownerId: OWNER, activityId: ACTIVITY, samples: validTrace });
-  assert.equal(retry.status, 201);
+  // Activity correctly transitions to rejected state after validation failure
+  assert.equal(f.records.get(ACTIVITY).status, 'rejected');
+  assert.equal(f.records.get(ACTIVITY).rejectionReason.code, 'duplicate_sample');
+
+  // A fresh recording activity with valid trace (>100m) succeeds
+  const opened2 = await start(f, OWNER, 'client-activity-0002');
+  const validTrace = rectangle(30, 30);
+  const fresh = await f.service.submit({ ownerId: OWNER, activityId: opened2.body.activity.id, samples: validTrace });
+  assert.equal(fresh.status, 201);
+  assert.equal(fresh.body.status, 'processed');
   assert.equal(f.claims, 1);
 });
 
